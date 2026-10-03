@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BLOCKING, getArena, type ArenaMap } from '../maps';
 import type { Pos } from '../engine/types';
 
-const LEVELS = [1, 2, 3];
+const LEVELS = [1, 2, 3, 4];
 const key = (p: Pos) => `${p.x},${p.y}`;
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 

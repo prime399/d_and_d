@@ -1,0 +1,43 @@
+import type { LevelDef } from './types';
+
+// Shrine of the Imp: candle hall hub, cult dormitory (lair 1) west, hobgoblin barracks (lair 2) east, imp altar (lair 3) before the exit; reliquary, vestry, well room and cellar on the corners.
+export const LEVEL4: LevelDef = {
+  title: "Shrine of the Imp",
+  rows: [
+    '####################D#####################',
+    '####################.#####################',
+    '##C......G####..PF...T..FP..#######..T.C##',
+    '##........####..............#######.....##',
+    '##...............3......3...X...........##',
+    '##..................3...................##',
+    '##L....#######..............#######.....##',
+    '#####..#######....3....3....#######G....##',
+    '#####..#######......~~......########..####',
+    '#####..############....#############..####',
+    '##.F....T.#########....#########..T.....##',
+    '##........#########....#########........##',
+    '##.1...1..###.T...T.L..T...T.###..2...2.##',
+    '##........###..P..........P..###........##',
+    '##...1..............S...................##',
+    '##......................................##',
+    '##.1....1.###........S.......###..2...2.##',
+    '##........###..P..........P..###........##',
+    '##K.......###................###.......K##',
+    '#####..############....############..#####',
+    '#####..############....############..#####',
+    '##.F....TF.########....########..T......##',
+    '##.........########....########........L##',
+    '##.........#####.F......F.#####.........##',
+    '##.........#####..........#####.........##',
+    '##.................HHH..................##',
+    '##........X.........E...................##',
+    '##G........#####..........#####GK....KKC##',
+    '##########################################',
+    '##########################################',
+  ],
+  lore: [
+    { title: "Reliquary Seal", text: "Wax drips over a carved hand with one finger too many. The seal is warm, though no candle has burned here in days." },
+    { title: "Altar Stone of Soot", text: "Soot names are written over older soot names, layer upon layer. Only the newest one is spelled correctly." },
+    { title: "Cellar Bargain", text: "A pact scratched in a cramped hand promises a cellar of wine in exchange for a small favour. The favour is not described, and the wine is gone." },
+  ],
+};
