@@ -13,7 +13,7 @@ export function InitiativeStrip({ ctrl }: { ctrl: GameController }) {
 
   return (
     <nav
-      className="pointer-events-auto absolute left-2 top-2 z-20 flex max-h-[calc(100%-210px)] w-[64px] flex-col items-center gap-1.5 overflow-y-auto scroll-thin rounded-xl bg-black/45 px-1.5 pb-2 pt-1.5 ring-1 ring-amber-900/40 backdrop-blur-[2px] max-sm:right-2 max-sm:w-auto max-sm:flex-row max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:py-1"
+      className="pointer-events-auto absolute left-2 top-2 z-20 flex max-h-[calc(100%-210px)] w-[64px] flex-col items-center gap-1.5 overflow-y-auto scroll-thin rounded-xl bg-black/45 px-1.5 pb-2 pt-1.5 ring-1 ring-amber-900/40 backdrop-blur-[2px] max-sm:right-[184px] max-sm:top-11 max-sm:w-auto max-sm:flex-row max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:py-1"
       aria-label="Initiative order"
     >
       <div className="text-center leading-none" title="Combat round">
