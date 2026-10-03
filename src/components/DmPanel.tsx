@@ -49,7 +49,6 @@ export function DmPanel({ ctrl }: { ctrl: GameController }) {
   const list = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
-  const [unseen, setUnseen] = useState(false);
   // only DM messages that arrive after mount get the typewriter
   const [mountMax] = useState(() => ctrl.view.chat.reduce((a, m) => Math.max(a, m.id), 0));
   const onCite = useCallback((id: string) => ctrl.focusDoc(id), [ctrl]);
@@ -59,12 +58,11 @@ export function DmPanel({ ctrl }: { ctrl: GameController }) {
   const lastBackend = useMemo(() => [...v.chat].reverse().find((m) => m.role === 'dm' && !m.pending && m.backend)?.backend, [v.chat]);
   const lastDone = useMemo(() => [...v.chat].reverse().find((m) => m.role === 'dm' && !m.pending && m.text), [v.chat]);
 
-  const toBottom = useCallback((smooth = false) => {
+  const toBottom = useCallback(() => {
     const el = list.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    el.scrollTo({ top: el.scrollHeight });
     stick.current = true;
-    setUnseen(false);
   }, []);
 
   // follow growth (new messages, typewriter, expanded traces) only when pinned to the bottom
@@ -83,19 +81,19 @@ export function DmPanel({ ctrl }: { ctrl: GameController }) {
     return () => ro.disconnect();
   }, []);
 
-  const chatLen = v.chat.length;
+  // Any new message (or a pending DM reply resolving) always jumps into view and re-pins the
+  // list, so the typewriter that follows keeps it visible too.
+  const last = v.chat[v.chat.length - 1];
+  const lastKey = last ? `${last.id}:${last.pending ? 1 : 0}` : '';
   useEffect(() => {
-    if (!chatLen) return;
-    if (stick.current) list.current?.scrollTo({ top: list.current.scrollHeight });
-    else setUnseen(true);
-  }, [chatLen]);
+    if (lastKey) toBottom();
+  }, [lastKey, toBottom]);
 
   const onScroll = () => {
     const el = list.current;
     if (!el) return;
     const at = el.scrollHeight - el.scrollTop - el.clientHeight < 28;
     stick.current = at;
-    if (at) setUnseen(false);
   };
 
   const send = (text: string) => {
@@ -140,11 +138,6 @@ export function DmPanel({ ctrl }: { ctrl: GameController }) {
             )}
           </div>
         </div>
-        {unseen && (
-          <button type="button" className="dm-newpill" onClick={() => toBottom(true)}>
-            New message ↓
-          </button>
-        )}
         {/* Screen readers hear only finished DM messages, once, without chip noise. */}
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {lastDone ? `Dungeon Master: ${plainText(lastDone.text, ctrl.titleMap)}` : ''}
