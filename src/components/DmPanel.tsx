@@ -17,7 +17,7 @@ type Item =
   | { kind: 'logs'; msgs: ChatMessage[] };
 
 // Engine lines arrive as role 'system' (or 'log'); room/intro banners become dividers.
-const isLog = (m: ChatMessage) => (m.role as string) === 'log' || m.role === 'system';
+const isLog = (m: ChatMessage) => m.role === 'log' || m.role === 'system';
 const isBanner = (m: ChatMessage) => m.role === 'system' && /^(Room \d+ of \d+:|Your party descends)/.test(m.text);
 
 function group(chat: ChatMessage[]): Item[] {
@@ -35,7 +35,7 @@ function group(chat: ChatMessage[]): Item[] {
 
 function logIcon(t: string) {
   const s = t.toLowerCase();
-  if (/\b(dies|died|slain|falls|down|killed|unconscious|defeated)\b/.test(s)) return { i: '☠', c: 'text-rose-300/80' };
+  if (/\b(dies|died|slain|falls|down|killed|unconscious|defeated)\b|\(0 hp/.test(s)) return { i: '☠', c: 'text-rose-300/80' };
   if (/\b(heal|heals|healed|regains|potion)\b/.test(s)) return { i: '✚', c: 'text-emerald-300/80' };
   if (/\b(cast|casts|spell|concentrat|save|saving)\b/.test(s)) return { i: '✦', c: 'text-violet-300/80' };
   if (/\b(hit|hits|miss|misses|attack|attacks|damage|crit)/.test(s)) return { i: '⚔', c: 'text-amber-300/80' };
