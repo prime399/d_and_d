@@ -21,8 +21,11 @@ export interface DiceShow {
   kind?: 'attack' | 'save' | 'damage' | 'heal' | 'check';
 }
 
+// land times leave the result plate up for >=300ms within core's holds (hero d20 1150, enemy d20 760, dmg 750/480)
 const LAND_D20 = 620;
 const LAND_OTHER = 420;
+const LAND_D20_FAST = 420;
+const LAND_OTHER_FAST = 180;
 const VISIBLE_MS = 2000;
 
 const OUTCOME: Record<string, { text: string; cls: string }> = {
@@ -80,13 +83,15 @@ function Tray({ show }: { show: DiceShow }) {
   const [landed, setLanded] = useState(reduced);
   const [gone, setGone] = useState(false);
   useEffect(() => {
-    const t1 = setTimeout(() => setLanded(true), reduced ? 0 : isD20 ? LAND_D20 : LAND_OTHER);
+    const fast = show.side === 'enemy';
+    const land = isD20 ? (fast ? LAND_D20_FAST : LAND_D20) : fast ? LAND_OTHER_FAST : LAND_OTHER;
+    const t1 = setTimeout(() => setLanded(true), reduced ? 0 : land);
     const t2 = setTimeout(() => setGone(true), VISIBLE_MS + (reduced ? 0 : 200));
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [isD20, reduced]);
+  }, [isD20, reduced, show.side]);
   if (gone) return null;
 
   const kind = show.kind ?? (isD20 ? (show.vs?.label === 'DC' ? 'save' : 'attack') : /heal|cure/i.test(show.label) ? 'heal' : 'damage');
@@ -114,7 +119,7 @@ function Tray({ show }: { show: DiceShow }) {
   const srText = `${show.label}: rolled ${multiD20 ? `${show.faces.join(' and ')}, kept ${keptFace}` : show.faces.join(', ')}. ${mathText}${show.vs ? ` versus ${show.vs.label} ${show.vs.value}` : ''}${out ? `. ${out.text}` : ''}`;
 
   return (
-    <div className={`dice-tray ${landed ? 'is-landed' : ''} ${nat20 && landed ? 'is-crit' : ''} ${nat1 && landed ? 'is-fumble' : ''} ${reduced ? 'is-reduced' : ''}`}>
+    <div style={{ '--land': `${show.side === 'enemy' ? (isD20 ? LAND_D20_FAST : LAND_OTHER_FAST) : isD20 ? LAND_D20 : LAND_OTHER}ms` } as CSSProperties} className={`dice-tray ${landed ? 'is-landed' : ''} ${nat20 && landed ? 'is-crit' : ''} ${nat1 && landed ? 'is-fumble' : ''} ${reduced ? 'is-reduced' : ''}`}>
       <div className="dice-head" aria-hidden="true">
         <span className={`dice-kind dice-kind-${kind}`}>{kindLabel}</span>
         <span className="dice-label">{show.label}</span>
