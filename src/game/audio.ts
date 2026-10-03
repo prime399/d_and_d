@@ -65,7 +65,7 @@ class AudioManager {
   }
 
   private async sample(url: string, gain = 1) {
-    if (this.muted || !this.ctx) return;
+    if (this.muted || !this.ctx || this.ctx.state === 'closed') return;
     try {
       let buf = this.buffers.get(url);
       if (!buf) {
@@ -86,7 +86,16 @@ class AudioManager {
 
   /** Synth blips (no asset needed): hit, crit, miss, heal, spell, step, death, ui. */
   blip(kind: 'hit' | 'crit' | 'miss' | 'heal' | 'spell' | 'death' | 'ui' | 'door' | 'chest') {
-    if (this.muted || !this.ctx) return;
+    if (this.muted || !this.ctx || this.ctx.state === 'closed') return;
+    try {
+      this.synth(kind);
+    } catch {
+      /* WebAudio unavailable (e.g. headless); sound is optional */
+    }
+  }
+
+  private synth(kind: Parameters<AudioManager['blip']>[0]) {
+    if (!this.ctx) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
     const out = ctx.createGain();
