@@ -3,21 +3,19 @@
 // When Sanity Context isn't configured, equivalent local tools over the same content keep the game playable.
 import { generateText, isStepCount, tool, type ToolSet } from 'ai';
 import { createMCPClient } from '@ai-sdk/mcp';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createBaseten } from '@ai-sdk/baseten';
 import { z } from 'zod';
 import { loadContent } from '@/game/content/loader';
 import { acquireSlot, clientIp, dailyLimit, globalLimit, rateLimit } from '@/lib/ratelimit';
 
 export const maxDuration = 60;
 
-// Inference via OpenRouter. Override the model with DM_MODEL (any OpenRouter slug with tool support).
-const MODEL = process.env.DM_MODEL || 'nvidia/nemotron-3.5-lightning';
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  compatibility: 'strict',
-  // Optional OpenRouter app attribution headers.
-  headers: { 'HTTP-Referer': process.env.OPENROUTER_SITE_URL ?? 'https://goblin-warren.vercel.app', 'X-Title': 'The Goblin Warren' },
-});
+// Inference via Baseten's OpenAI-compatible Model APIs. Override the model with DM_MODEL.
+const MODEL = process.env.DM_MODEL || 'deepseek-ai/DeepSeek-V4.1-Flash';
+const baseten = createBaseten({ apiKey: process.env.BASETEN_API_KEY });
+// Reasoning off: the DM needs fast, short tool-using turns, not long hidden chains of thought.
+// Extra keys here are spread into the request body by the OpenAI-compatible provider.
+const REASONING_OFF = { baseten: { chat_template_kwargs: { thinking: false, enable_thinking: false } } };
 
 const MAX_BODY = 16_000;
 
@@ -290,7 +288,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: 'Bad request' }, { status: 400 });
   const body = parsed.data;
 
-  const hasModel = Boolean(process.env.OPENROUTER_API_KEY);
+  const hasModel = Boolean(process.env.BASETEN_API_KEY);
   if (!hasModel) {
     const res: DmResponse = { text: offlineText(body), lookups: [], ids: body.cited, model: null, backend: 'offline' };
     return Response.json(res);
@@ -343,7 +341,8 @@ async function generate(body: z.infer<typeof Body>): Promise<Response> {
 
   try {
     const { text } = await generateText({
-      model: openrouter(MODEL),
+      model: baseten(MODEL),
+      providerOptions: REASONING_OFF,
       instructions: SYSTEM(body.srdVersion),
       prompt,
       tools,

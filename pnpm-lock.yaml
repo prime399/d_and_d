@@ -11,15 +11,15 @@ importers:
       '@3d-dice/dice-box':
         specifier: 1.1.4
         version: 1.1.4(babylonjs-gltf2interface@5.57.1)
+      '@ai-sdk/baseten':
+        specifier: 2.1.40
+        version: 2.1.40(zod@4.6.5)
       '@ai-sdk/mcp':
         specifier: 2.0.66
         version: 2.0.66(zod@4.6.5)
       '@dice-roller/rpg-dice-roller':
         specifier: 5.5.1
         version: 5.5.1
-      '@openrouter/ai-sdk-provider':
-        specifier: 3.1.0
-        version: 3.1.0(ai@7.0.127(zod@4.6.5))(zod@4.6.5)
       '@sanity/client':
         specifier: 8.9.0
         version: 8.9.0(vitest@5.0.3(@types/node@20.19.43)(vite@8.3.2(@types/node@20.19.43)(jiti@2.7.0)))
@@ -84,6 +84,12 @@ packages:
   '@3d-dice/dice-box@1.1.4':
     resolution: {integrity: sha512-W8evh0LlCx/sorPS00cGZJO+/3I8g5eMfDqFAKAIUXF+/XVTP06bhgHSNFOCvLzWbdbEJX5za9QxB0ulDvfxyA==}
 
+  '@ai-sdk/baseten@2.1.40':
+    resolution: {integrity: sha512-0sjmOdeC3XguNMWcbZ18ZOX3wyyW3N0MSdn1O1Lq16oybVBTP+mDzzvJswvvxJ1sEfDstsCXsyEfrfEGSFwTfw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.103':
     resolution: {integrity: sha512-nnGTUHzPRQ14jhv9CL4OQrzcRBIFTBMIPKGIi9Z9u/4GtwSRxa/nxUX6np2Iwp5phOzO0a0njj/j9Jolf5AEaA==}
     engines: {node: '>=22'}
@@ -92,6 +98,12 @@ packages:
 
   '@ai-sdk/mcp@2.0.66':
     resolution: {integrity: sha512-wFAL5rL/CQljgrhrtpzvrmLJ1tY7Q3o9+SQR+02ZYff3jzXOpj3vfCdi6PjJ1jS3jDd8rkmE9QFlfOFKztI3pg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai-compatible@3.0.62':
+    resolution: {integrity: sha512-IAz1xv8zot4KLGa8kN7UfAA6H5+ARzAgAKLsoKxHPBzZuOc2E3ohaELg0x/JR9HVTbMbiftb0dPyCb8cT2KBRg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -533,13 +545,6 @@ packages:
   '@nolyfill/is-core-module@1.0.39':
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
-
-  '@openrouter/ai-sdk-provider@3.1.0':
-    resolution: {integrity: sha512-BQy1TA9fKrh47s9ivsO6FY5QimN7GUF0i8Qon3pkxQclEgShso0dClpcWn8OIyPLEZZPFaFKgI8TW4S/O0p0Dw==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      ai: ^7.0.0
-      zod: ^3.25.76 || ^4.1.8
 
   '@oxc-project/types@0.152.0':
     resolution: {integrity: sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw==}
@@ -2706,6 +2711,13 @@ snapshots:
     transitivePeerDependencies:
       - babylonjs-gltf2interface
 
+  '@ai-sdk/baseten@2.1.40(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/openai-compatible': 3.0.62(zod@4.6.5)
+      '@ai-sdk/provider': 4.0.21
+      '@ai-sdk/provider-utils': 5.0.53(zod@4.6.5)
+      zod: 4.6.5
+
   '@ai-sdk/gateway@4.0.103(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.21
@@ -2719,6 +2731,12 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.53(zod@4.6.5)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
+      zod: 4.6.5
+
+  '@ai-sdk/openai-compatible@3.0.62(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.21
+      '@ai-sdk/provider-utils': 5.0.53(zod@4.6.5)
       zod: 4.6.5
 
   '@ai-sdk/provider-utils@5.0.53(zod@4.6.5)':
@@ -3121,11 +3139,6 @@ snapshots:
       fastq: 1.20.3
 
   '@nolyfill/is-core-module@1.0.39': {}
-
-  '@openrouter/ai-sdk-provider@3.1.0(ai@7.0.127(zod@4.6.5))(zod@4.6.5)':
-    dependencies:
-      ai: 7.0.127(zod@4.6.5)
-      zod: 4.6.5
 
   '@oxc-project/types@0.152.0': {}
 
