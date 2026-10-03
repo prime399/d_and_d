@@ -159,7 +159,7 @@ export async function kbRead(paths: string[]): Promise<KbResult> {
 }
 
 const STOP = new Set(
-  'a an and are as at be but by can do does did for from has have how i if in into is it its me my of on or so than that the their them then there these they this to was we what when where which while who why will with would you your work works working rule rules dm please tell explain about between happen happens get gets change changes changed versus vs'.split(' '),
+  'a an and are as at be but by can do does did for from has have how i if in into is it its me my of on or so than that the their them then there these they this to was we what when where which while who why will with would you your work works working rule rules dm please tell explain about between happen happens get gets change changes changed versus vs 2014 2024 edition editions new old version versions'.split(' '),
 );
 
 /** BM25 matches exact words: keep content words from the question (+ obvious variants). */

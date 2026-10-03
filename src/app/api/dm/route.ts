@@ -440,7 +440,10 @@ async function generate(body: z.infer<typeof Body>): Promise<Response> {
       abortSignal: AbortSignal.timeout(25_000),
     });
     const returned = new Set([...body.cited, ...lookups.flatMap((l) => l.ids)].filter((id) => KNOWN_IDS.has(id)));
-    const reply = polishReply(text, { mode: body.mode, allowed: returned }) || offlineText(body);
+    let reply = polishReply(text, { mode: body.mode, allowed: returned }) || offlineText(body);
+    // an off-topic or injection refusal stays one sentence, with no rules trivia attached
+    const refusal = reply.match(/^[^.!?]*only speaks of the dungeon[^.!?]*[.!?]/i);
+    if (refusal) reply = refusal[0];
     const ids = known([...returned, ...extractIds(reply)]);
     const res: DmResponse = { text: reply, lookups, ids, model: MODEL, backend, ms: Date.now() - started };
     return Response.json(res);
