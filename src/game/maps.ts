@@ -12,6 +12,7 @@
 import type { Pos } from './engine/types';
 import type { LevelDef } from './levels/types';
 import { LEVEL1 } from './levels/level1';
+import { LEVEL2 } from './levels/level2';
 
 export interface Lair { id: number; spawns: Pos[]; aggro: number /* tiles, default 5 */ }
 export interface LoreStone { pos: Pos; title: string; text: string }
@@ -42,6 +43,7 @@ export const DEFAULT_AGGRO = 5;
 
 const LEVELS: Record<number, LevelDef> = {
   1: LEVEL1,
+  2: LEVEL2,
 };
 
 /** Glyphs that block movement (and are marked in `walls`). */
