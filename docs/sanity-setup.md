@@ -97,7 +97,7 @@ GROQ mode (`dnd-groq`):
 
 Knowledge Base mode (`dnd-kb`):
 - Source: `{"type": "knowledge-base", "id": "kb..."}` (the KB from step 6)
-- Tools: `initial_context`, `knowledge_base_read`
+- Tools: `initial_context`, `knowledge_base_search`, `knowledge_base_read`
 
 The mode is inferred from the sources: a dataset source means GROQ mode, and
 all-KB sources means KB mode. You can override it per request with `?mode=groq|knowledge_base`.
@@ -148,7 +148,7 @@ curl -sS "$SANITY_CONTEXT_MCP_URL" \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 
-# KB mode: expect initial_context, knowledge_base_read
+# KB mode: expect initial_context, knowledge_base_search, knowledge_base_read
 curl -sS "$SANITY_KB_MCP_URL" \
   -H "Authorization: Bearer $SANITY_KB_TOKEN" \
   -H 'Content-Type: application/json' \
@@ -176,6 +176,31 @@ Common errors:
 - JSON-RPC `-32005`: the KB endpoint is empty (indexing isn't done, or the filter matched nothing).
 - JSON-RPC `-32602`: invalid `groqFilter` URL param.
 
+## How the DM uses the two endpoints
+
+Code: `src/app/api/dm/route.ts`, `src/lib/sanityMcp.ts` (stateless JSON-RPC to both endpoints), `src/lib/polish.ts`.
+
+| Question type | Endpoint | Why |
+|---|---|---|
+| Rules prose ("how does grappling work", "what changed in 2014 vs 2024") | **Knowledge Base**: `knowledge_base_search` (`return: "entries"`), then `knowledge_base_read` if needed | KB entries group related rules (e.g. Grappled + Prone + Restrained) and carry "Edition difference" notes the KB wrote while indexing. That gives one compact, already-compared text instead of several raw docs. |
+| Exact numbers (monster AC/HP/attacks, spell level/dice, a doc by id) | **GROQ**: `groq_query` | Exact field values, no paraphrase. The DM must never invent numbers. |
+| Narration beats | **GROQ** fetch of the ids the engine cited | The engine already knows which rules applied; fetching by id is exact and fast. Exploration beats (room entry, lore, loot) get no lookups and narrate freely. |
+
+Flow for a rules question (one model step in the common case):
+
+1. In parallel, server-side: a KB search on the question's keywords (BM25 needs exact words, so stop-words are dropped and stems added), plus a GROQ fetch of any monster, spell, condition or rule named in the question. For conditions, both editions are fetched.
+2. The KB's numbered source footnotes (`[1]` … `1. Grappled — Dataset`) are mapped back to dataset ids. 2014 vs 2024 is decided by the line the footnote sits on. They are inlined as `[[condition.grappled]]`, so the model cites exact ids and `lookups[].ids` show real documents.
+3. The model answers from that text. It keeps `knowledge_base_search`, `knowledge_base_read` and `groq_query` as tools for one more round if the prefetch missed something. The final step always has no tools.
+4. `polishReply` strips markdown and leaked tool markup and drops any `[[id]]` that wasn't returned by a lookup or known in `fallback.json`. It trims to 90 words (rules) or 55 (narration) at sentence boundaries and keeps the `Rules changed:` line. It also removes narration sentences that talk about lookups or tools.
+
+The prefetch replaces model-driven tool calls because DeepSeek on Baseten honours `toolChoice` loosely: a forced or `required` tool choice does call the tool, but the model then makes up the query (it searched for "hello"). A keyword search built server-side is more reliable and saves a round trip. `initial_context` (the KB id) is cached per server instance.
+
+Contradictions: the KB MCP exposes no contradiction-report tool or resource (`tools/list` has only the three tools above; `resources/list` and `prompts/list` return `-32601`). The KB's per-entry "Edition difference" call-outs are the nearest thing. The DM surfaces them in the "How the DM ruled" trace (violet ⚖ notes under the Knowledge Base step) and passes them to the model for the `Rules changed:` line.
+
+GROQ quirk: the Context MCP collapses arrays of objects into a name-only outline (`attacks` comes back as `["Scimitar","Shortbow"]` with no numbers). The DM therefore projects `"attack1": attacks[0]{…}` by index; scalar arrays (`effects[]`) come back whole.
+
+Live check: `BASE_URL=http://localhost:3000 pnpm exec playwright test e2e/dm-live.spec.ts --reporter=line` (7 real requests). Measured on 2026-10-03: rules answers 1.3–2.2 s, narration about 2 s.
+
 ## Note on dotted document IDs
 
 IDs that contain a `.` (e.g. `condition.exhaustion.2014`) are "path" IDs. Sanity
@@ -192,7 +217,7 @@ them, check `count(*[_type=="rule"])` through the MCP against the direct API cou
 - The org token (`SANITY_CONTEXT_TOKEN` / `SANITY_KB_TOKEN`) needs the **Context Viewer** role only, nothing broader.
 - Keep the dataset **private**.
 - The DM route allowlists MCP tools (`groq_query`, `schema_explorer`, `array_field_reader`, `initial_context`,
-  `knowledge_base_read`), scopes GROQ with `tools=` and `groqFilter=_type in ["rule","condition","spell","monster"]`,
+  `knowledge_base_search`, `knowledge_base_read`), scopes GROQ with `tools=` and `groqFilter=_type in ["rule","condition","spell","monster"]`,
   rejects GROQ without `_type` or touching `drafts.` / `_id in path(`, and treats all browser text as data-only blocks.
 - Built-in limits are per instance and best-effort (20 req/min and 300/day per IP, 120 req/min globally,
   4 concurrent generations, 16 KB bodies, 25 s timeout). In production also add a **Vercel Firewall rate-limit rule**
