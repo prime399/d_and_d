@@ -46,7 +46,8 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     expect(scroll.h).toBeLessThanOrEqual(vp.height);
     expect(scroll.w).toBeLessThanOrEqual(vp.width);
 
-    if (await toCaster(page)) {
+    // the fight can end while turns are skipped (back to explore mode, no spellbook button)
+    if ((await toCaster(page)) && (await page.locator('.hud-act[aria-haspopup]').isVisible({ timeout: 2000 }).catch(() => false))) {
       await page.waitForTimeout(1300);
       await page.locator('.hud-act[aria-haspopup]').click();
       await expect(page.getByRole('dialog', { name: /spellbook/ })).toBeVisible();
