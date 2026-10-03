@@ -15,6 +15,7 @@ import { LEVEL1 } from './levels/level1';
 import { LEVEL2 } from './levels/level2';
 import { LEVEL3 } from './levels/level3';
 import { LEVEL4 } from './levels/level4';
+import { LEVEL5 } from './levels/level5';
 
 export interface Lair { id: number; spawns: Pos[]; aggro: number /* tiles, default 5 */ }
 export interface LoreStone { pos: Pos; title: string; text: string }
@@ -48,6 +49,7 @@ const LEVELS: Record<number, LevelDef> = {
   2: LEVEL2,
   3: LEVEL3,
   4: LEVEL4,
+  5: LEVEL5,
 };
 
 /** Glyphs that block movement (and are marked in `walls`). */

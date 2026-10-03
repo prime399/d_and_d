@@ -1,0 +1,43 @@
+import type { LevelDef } from './types';
+
+// Throne of the Bugbear Chief: trophy hall hub, goblin kennels (lair 1) west, hobgoblin armoury (lair 2) east, pillared throne room (lair 3, boss) guarding the exit door; treasury, loot store, mess and stables on the corners.
+export const LEVEL5: LevelDef = {
+  title: "Throne of the Bugbear Chief",
+  rows: [
+    '######################D#######################',
+    '######################..######################',
+    '##GTG...C###K..B..B..T..T..B..B..K###.G...TK##',
+    '##.G.....###..........33..........###......K##',
+    '##............P................P............##',
+    '##................3........3................##',
+    '##.......###......................###.......##',
+    '##...G...###..P....3......3....P..###......G##',
+    '####..######.........G............######..####',
+    '####..######G....................G######..####',
+    '####..##############......##############..####',
+    '##B....T...#########P....P#########..T.....B##',
+    '##.........#########......#########.........##',
+    '##.1....1..##.B..T..........T..B.##..2....2.##',
+    '##.........##..P..............P..##.........##',
+    '##....1.........R.....L.....................##',
+    '##...........................R..............##',
+    '##.1....1..##..P..............P..##..2....2.##',
+    '##.........##.X................X.##.........##',
+    '##K........##########....##########........K##',
+    '#####..##############....##############..#####',
+    '#####..##############....##############..#####',
+    '##........KK#########....#########.........L##',
+    '##..........######..T....T..######..........##',
+    '##L.........######........R.######..X.......##',
+    '##...................HHH....................##',
+    '##.......X............E.....................##',
+    '##C.........######.X........######KK.......C##',
+    '##############################################',
+    '##############################################',
+  ],
+  lore: [
+    { title: "The Trophy Cairn", text: "Helmets of a dozen lost companies are stacked into a crooked tower. Each one has been dented in exactly the same place." },
+    { title: "Mess Hall Boast", text: "Crude letters brag that the chief once ate a whole ox and asked for the cart. Smaller letters below add that he did eat the cart." },
+    { title: "Stable Grave", text: "A lone stone for a war-wolf, scratched with more care than anything else in the warren. Someone still leaves bones here." },
+  ],
+};

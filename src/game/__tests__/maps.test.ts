@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BLOCKING, getArena, type ArenaMap } from '../maps';
 import type { Pos } from '../engine/types';
 
-const LEVELS = [1, 2, 3, 4];
+const LEVELS = [1, 2, 3, 4, 5];
 const key = (p: Pos) => `${p.x},${p.y}`;
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -86,5 +86,15 @@ describe.each(LEVELS)('level %i', (order) => {
     for (const p of a.monsterSpawns) expect(seen.has(key(p))).toBe(true);
     for (const p of [...a.chests, ...a.gold, ...a.lore.map((l) => l.pos), a.door!])
       expect(adjReached(seen, p), `adjacent to ${key(p)}`).toBe(true);
+  });
+});
+
+describe('boss level', () => {
+  it('puts the throne lair last and nearest the door', () => {
+    const a = getArena(5);
+    const dist = (l: { spawns: Pos[] }) =>
+      Math.min(...l.spawns.map((p) => Math.abs(p.x - a.door!.x) + Math.abs(p.y - a.door!.y)));
+    const last = a.lairs[a.lairs.length - 1];
+    for (const l of a.lairs) expect(dist(last)).toBeLessThanOrEqual(dist(l));
   });
 });
