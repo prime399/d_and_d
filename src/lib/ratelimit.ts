@@ -4,6 +4,8 @@ const hits = new Map<string, number[]>();
 const daily = new Map<string, { day: number; n: number }>();
 let globalHits: number[] = [];
 let inFlight = 0;
+// Local dev: every playtester and e2e run shares the "local" bucket, so only production enforces the per-IP caps.
+const DEV = process.env.NODE_ENV !== 'production';
 
 /** Client IP from platform-set headers. The first x-forwarded-for hop is client-controlled, so use the last. */
 export function clientIp(req: Request): string {
@@ -14,6 +16,7 @@ export function clientIp(req: Request): string {
 }
 
 export function rateLimit(ip: string, limit = 20, windowMs = 60_000): boolean {
+  if (DEV) return true;
   const now = Date.now();
   const list = (hits.get(ip) ?? []).filter((t) => now - t < windowMs);
   if (list.length >= limit) {
@@ -37,6 +40,7 @@ export function globalLimit(limit = 120, windowMs = 60_000): boolean {
 
 /** Per-IP daily cap on DM calls. */
 export function dailyLimit(ip: string, limit = 300): boolean {
+  if (DEV) return true;
   const day = Math.floor(Date.now() / 86_400_000);
   const cur = daily.get(ip);
   const rec = cur && cur.day === day ? cur : { day, n: 0 };
