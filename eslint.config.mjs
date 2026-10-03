@@ -5,6 +5,9 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // The rules engine is plain TypeScript, not React: its local `use()` helper is not a hook.
+  { files: ["src/game/engine/**"], rules: { "react-hooks/rules-of-hooks": "off" } },
+  { files: ["**/__tests__/**", "**/*.test.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
