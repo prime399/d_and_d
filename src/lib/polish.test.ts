@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { polishReply, sentences, wordCount, WORD_CAP } from './polish';
+import { polishReply, promoteChange, sentences, wordCount, WORD_CAP } from './polish';
 
 const allowed = new Set(['condition.prone', 'condition.prone.2014', 'rule.advantage']);
 
@@ -29,5 +29,17 @@ describe('polishReply', () => {
   });
   it('drops a sentence cut off mid-way', () => {
     expect(polishReply('You stand tall. The goblin snarls and', { mode: 'narrate', allowed })).toBe('You stand tall.');
+  });
+});
+
+describe('promoteChange', () => {
+  it('turns a trailing "In 2014" sentence citing a 2014 doc into the Rules changed line', () => {
+    const r = promoteChange('Prone means you crawl [[condition.prone]]. In 2014, standing cost half your speed [[condition.prone.2014]]. Attackers nearby have advantage [[rule.advantage]].');
+    expect(r).toBe('Prone means you crawl [[condition.prone]]. Attackers nearby have advantage [[rule.advantage]]. Rules changed: In 2014 standing cost half your speed [[condition.prone.2014]].');
+  });
+  it('leaves answers without a 2014 citation or with an existing line alone', () => {
+    expect(promoteChange('You crawl [[condition.prone]]. In 2014 it was similar.')).toBe('You crawl [[condition.prone]]. In 2014 it was similar.');
+    const done = 'You crawl [[condition.prone]]. Rules changed: x [[condition.prone.2014]].';
+    expect(promoteChange(done)).toBe(done);
   });
 });

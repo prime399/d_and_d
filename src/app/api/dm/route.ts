@@ -10,7 +10,7 @@ import { createBaseten } from '@ai-sdk/baseten';
 import { z } from 'zod';
 import { loadContent } from '@/game/content/loader';
 import { acquireSlot, clientIp, dailyLimit, globalLimit, rateLimit } from '@/lib/ratelimit';
-import { polishReply } from '@/lib/polish';
+import { polishReply, promoteChange } from '@/lib/polish';
 import {
   ID_RE,
   KNOWN_IDS,
@@ -98,8 +98,9 @@ Plain prose only: no markdown, headers, bullets or bold.`;
 const ASK_STYLE = `Answer format (max 80 words, citations don't count):
 1. One-sentence direct answer.
 2. One to three sentences with the key mechanics.
-3. Only for rules (not stats) where the retrieved text shows the 2014 and 2024 versions differ on this exact point: one final sentence starting "Rules changed:" that says what changed. Otherwise omit it; never write a "Rules changed:" line saying nothing changed or that the tome is silent.
-Cite every rules sentence.`;
+3. Only for rules (not stats) where the retrieved text shows the 2014 and 2024 versions differ on this exact point: one final sentence starting "Rules changed:" that says what changed, citing the ".2014" id. If both an id and its ".2014" counterpart were retrieved and their texts differ, include it. Otherwise omit it; never write a "Rules changed:" line saying nothing changed or that the tome is silent.
+Cite every rules sentence.
+Stats: monster and hero "speed" is in 5-foot squares (6 = 30 feet), so say feet; write CR as a fraction (0.25 = 1/4). Answer only the stat asked plus at most one related line.`;
 
 const NARRATE_STYLE = `Narrate this beat in 2-3 sentences, max 50 words, second person ("you"), vivid and sensory, dark-fantasy tavern storyteller.
 - Combat: dramatise what the event log says happened, using only its numbers. If a condition or special rule applied, weave a one-clause explanation with its [[doc-id]] from the rules text below.
@@ -441,10 +442,14 @@ async function generate(body: z.infer<typeof Body>): Promise<Response> {
     });
     const returned = new Set([...body.cited, ...lookups.flatMap((l) => l.ids)].filter((id) => KNOWN_IDS.has(id)));
     let reply = polishReply(text, { mode: body.mode, allowed: returned }) || offlineText(body);
+    if (isAsk) reply = promoteChange(reply);
     // an off-topic or injection refusal stays one sentence, with no rules trivia attached
     const refusal = reply.match(/^[^.!?]*only speaks of the dungeon[^.!?]*[.!?]/i);
     if (refusal) reply = refusal[0];
-    const ids = known([...returned, ...extractIds(reply)]);
+    // light only what the ruling rests on: engine citations plus docs cited in the reply
+    // (a stray KB hit on "goblin" or on an injection attempt shouldn't light Ready/Reactions in the graph)
+    const cited = extractIds(reply);
+    const ids = refusal ? [] : known([...body.cited, ...(cited.length ? cited : returned)]);
     const res: DmResponse = { text: reply, lookups, ids, model: MODEL, backend, ms: Date.now() - started };
     return Response.json(res);
   } catch (err) {

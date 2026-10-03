@@ -88,6 +88,19 @@ export function polishReply(raw: string, opts: { mode: DmMode; allowed: Set<stri
   return res;
 }
 
+/**
+ * Edition-difference answers sometimes end "In 2014, ..." instead of the "Rules changed:" line the UI renders as a
+ * 2014 → 2024 callout. Promote the first such sentence that cites a .2014 document; never adds one from nothing.
+ */
+export function promoteChange(text: string): string {
+  if (/Rules changed:/.test(text)) return text;
+  const ss = sentences(text);
+  const i = ss.findIndex((s, k) => k > 0 && /\[\[[^\]]+\.2014\]\]/.test(s) && /^(?:In|Under)(?: the)? (?:2014|older|original|earlier)\b|^(?:The )?2014\b|^Previously\b|^Before 2024\b/i.test(s));
+  if (i < 0) return text;
+  const s = ss.splice(i, 1)[0].replace(/^(?:In|Under)(?: the)? (?:2014|older|original|earlier)(?: rules| SRD| version| edition)?,?\s*/i, 'In 2014 ');
+  return [...ss, `Rules changed: ${s}`].join(' ');
+}
+
 function clipWords(s: string, n: number): string {
   const parts = s.split(/\s+/);
   const out: string[] = [];
