@@ -1,0 +1,2 @@
+# Raw SRD downloads (re-fetched by scripts/build-content.ts when missing)
+*/*.json

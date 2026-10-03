@@ -1,0 +1,2622 @@
+{
+  "monsters": [
+    {
+      "_id": "monster.goblin",
+      "slug": "goblin",
+      "name": "Goblin",
+      "cr": 0.25,
+      "xp": 50,
+      "ac": 15,
+      "hp": 10,
+      "speed": 6,
+      "abilities": {
+        "str": 8,
+        "dex": 15,
+        "con": 10,
+        "int": 10,
+        "wis": 8,
+        "cha": 8
+      },
+      "attacks": [
+        {
+          "name": "Scimitar",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "slashing",
+          "range": 1
+        },
+        {
+          "name": "Shortbow",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "range": 12
+        }
+      ],
+      "spriteKey": "goblin",
+      "description": "A wiry, cackling raider that fights dirty and flees the moment the odds turn. Goblins love ambushes and hate fair fights.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.hobgoblin",
+      "slug": "hobgoblin",
+      "name": "Hobgoblin",
+      "cr": 0.5,
+      "xp": 100,
+      "ac": 18,
+      "hp": 11,
+      "speed": 6,
+      "abilities": {
+        "str": 13,
+        "dex": 12,
+        "con": 12,
+        "int": 10,
+        "wis": 10,
+        "cha": 9
+      },
+      "attacks": [
+        {
+          "name": "Longsword",
+          "toHit": 3,
+          "damage": "2d10+1",
+          "damageType": "slashing",
+          "range": 1
+        },
+        {
+          "name": "Longbow",
+          "toHit": 3,
+          "damage": "1d8+1",
+          "damageType": "piercing",
+          "range": 12
+        }
+      ],
+      "spriteKey": "masked_orc",
+      "description": "A disciplined goblinoid soldier in lacquered armour. Hobgoblins hold the line and bark orders at their smaller kin.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.orc",
+      "slug": "orc",
+      "name": "Orc",
+      "cr": 0.5,
+      "xp": 100,
+      "ac": 13,
+      "hp": 15,
+      "speed": 6,
+      "abilities": {
+        "str": 16,
+        "dex": 12,
+        "con": 16,
+        "int": 7,
+        "wis": 11,
+        "cha": 10
+      },
+      "attacks": [
+        {
+          "name": "Greataxe",
+          "toHit": 5,
+          "damage": "1d12+3",
+          "damageType": "slashing",
+          "range": 1
+        },
+        {
+          "name": "Javelin",
+          "toHit": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "range": 6
+        }
+      ],
+      "spriteKey": "orc_warrior",
+      "description": "A tusked brute hefting a greataxe, fuelled by rage and the promise of plunder.",
+      "srdVersion": "2014"
+    },
+    {
+      "_id": "monster.cultist",
+      "slug": "cultist",
+      "name": "Cultist",
+      "cr": 0.125,
+      "xp": 25,
+      "ac": 12,
+      "hp": 9,
+      "speed": 6,
+      "abilities": {
+        "str": 11,
+        "dex": 12,
+        "con": 10,
+        "int": 10,
+        "wis": 11,
+        "cha": 10
+      },
+      "attacks": [
+        {
+          "name": "Ritual Sickle",
+          "toHit": 3,
+          "damage": "1d4+1",
+          "damageType": "slashing",
+          "range": 1
+        }
+      ],
+      "spriteKey": "orc_shaman",
+      "description": "A hooded zealot clutching a ritual sickle, muttering prayers to something that should stay asleep.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.skeleton",
+      "slug": "skeleton",
+      "name": "Skeleton",
+      "cr": 0.25,
+      "xp": 50,
+      "ac": 14,
+      "hp": 13,
+      "speed": 6,
+      "abilities": {
+        "str": 10,
+        "dex": 16,
+        "con": 15,
+        "int": 6,
+        "wis": 8,
+        "cha": 5
+      },
+      "attacks": [
+        {
+          "name": "Shortsword",
+          "toHit": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "range": 1
+        },
+        {
+          "name": "Shortbow",
+          "toHit": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "range": 12
+        }
+      ],
+      "spriteKey": "skelet",
+      "description": "Rattling bones bound together by old necromancy. It remembers how to use a sword and nothing else.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.zombie",
+      "slug": "zombie",
+      "name": "Zombie",
+      "cr": 0.25,
+      "xp": 50,
+      "ac": 8,
+      "hp": 15,
+      "speed": 4,
+      "abilities": {
+        "str": 13,
+        "dex": 6,
+        "con": 16,
+        "int": 3,
+        "wis": 6,
+        "cha": 5
+      },
+      "attacks": [
+        {
+          "name": "Slam",
+          "toHit": 3,
+          "damage": "1d8+1",
+          "damageType": "bludgeoning",
+          "range": 1
+        }
+      ],
+      "spriteKey": "zombie",
+      "description": "A shambling corpse that keeps coming no matter how many pieces it loses.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.ogre",
+      "slug": "ogre",
+      "name": "Ogre",
+      "cr": 2,
+      "xp": 450,
+      "ac": 11,
+      "hp": 68,
+      "speed": 8,
+      "abilities": {
+        "str": 19,
+        "dex": 8,
+        "con": 16,
+        "int": 5,
+        "wis": 7,
+        "cha": 7
+      },
+      "attacks": [
+        {
+          "name": "Greatclub",
+          "toHit": 6,
+          "damage": "2d8+4",
+          "damageType": "bludgeoning",
+          "range": 1
+        },
+        {
+          "name": "Javelin",
+          "toHit": 6,
+          "damage": "2d6+4",
+          "damageType": "piercing",
+          "range": 6
+        }
+      ],
+      "spriteKey": "ogre",
+      "description": "A hulking, dim-witted giant swinging a tree-trunk club. One good hit can flatten an adventurer.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.imp",
+      "slug": "imp",
+      "name": "Imp",
+      "cr": 1,
+      "xp": 200,
+      "ac": 13,
+      "hp": 21,
+      "speed": 4,
+      "abilities": {
+        "str": 6,
+        "dex": 17,
+        "con": 13,
+        "int": 11,
+        "wis": 12,
+        "cha": 14
+      },
+      "attacks": [
+        {
+          "name": "Sting",
+          "toHit": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "range": 1
+        }
+      ],
+      "spriteKey": "imp",
+      "description": "A tiny, sneering fiend with a venomous tail, always whispering bad advice to its master.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.giant-rat",
+      "slug": "giant-rat",
+      "name": "Giant Rat",
+      "cr": 0.125,
+      "xp": 25,
+      "ac": 13,
+      "hp": 7,
+      "speed": 6,
+      "abilities": {
+        "str": 7,
+        "dex": 16,
+        "con": 11,
+        "int": 2,
+        "wis": 10,
+        "cha": 4
+      },
+      "attacks": [
+        {
+          "name": "Bite",
+          "toHit": 5,
+          "damage": "1d4+3",
+          "damageType": "piercing",
+          "range": 1
+        }
+      ],
+      "spriteKey": "tiny_zombie",
+      "description": "A dog-sized, mangy rat with yellow teeth. Alone it is a nuisance; in a pack it is a problem.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.bugbear",
+      "slug": "bugbear",
+      "name": "Bugbear",
+      "cr": 1,
+      "xp": 200,
+      "ac": 14,
+      "hp": 33,
+      "speed": 6,
+      "abilities": {
+        "str": 15,
+        "dex": 14,
+        "con": 13,
+        "int": 8,
+        "wis": 11,
+        "cha": 9
+      },
+      "attacks": [
+        {
+          "name": "Grab",
+          "toHit": 4,
+          "damage": "2d6+2",
+          "damageType": "bludgeoning",
+          "range": 1,
+          "inflicts": "grappled",
+          "inflictsSave": {
+            "ability": "str",
+            "dc": 12
+          }
+        },
+        {
+          "name": "Light Hammer",
+          "toHit": 4,
+          "damage": "3d4+2",
+          "damageType": "bludgeoning",
+          "range": 4
+        }
+      ],
+      "spriteKey": "big_zombie",
+      "description": "The self-crowned Bugbear Chief: a shaggy, long-armed brute who grabs prey from surprising reach and pounds it with a hammer.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.lizardfolk",
+      "slug": "lizardfolk",
+      "name": "Lizardfolk",
+      "cr": 0.5,
+      "xp": 100,
+      "ac": 15,
+      "hp": 22,
+      "speed": 6,
+      "abilities": {
+        "str": 15,
+        "dex": 10,
+        "con": 13,
+        "int": 7,
+        "wis": 12,
+        "cha": 7
+      },
+      "attacks": [
+        {
+          "name": "Bite",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "range": 1
+        },
+        {
+          "name": "Heavy Club",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "bludgeoning",
+          "range": 1
+        },
+        {
+          "name": "Javelin",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "range": 6
+        }
+      ],
+      "spriteKey": "lizard_m",
+      "description": "A cold-eyed reptilian hunter that sees other creatures mostly as meat.",
+      "srdVersion": "2014"
+    },
+    {
+      "_id": "monster.ghoul",
+      "slug": "ghoul",
+      "name": "Ghoul",
+      "cr": 1,
+      "xp": 200,
+      "ac": 12,
+      "hp": 22,
+      "speed": 6,
+      "abilities": {
+        "str": 13,
+        "dex": 15,
+        "con": 10,
+        "int": 7,
+        "wis": 10,
+        "cha": 6
+      },
+      "attacks": [
+        {
+          "name": "Bite",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "range": 1
+        },
+        {
+          "name": "Claw",
+          "toHit": 4,
+          "damage": "1d4+2",
+          "damageType": "slashing",
+          "range": 1,
+          "inflicts": "paralyzed",
+          "inflictsSave": {
+            "ability": "con",
+            "dc": 10
+          }
+        }
+      ],
+      "spriteKey": "ice_zombie",
+      "description": "A gaunt, grave-robbing undead whose filthy claws can lock a victim's muscles rigid.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.gray-ooze",
+      "slug": "gray-ooze",
+      "name": "Gray Ooze",
+      "cr": 0.5,
+      "xp": 100,
+      "ac": 9,
+      "hp": 22,
+      "speed": 2,
+      "abilities": {
+        "str": 12,
+        "dex": 6,
+        "con": 16,
+        "int": 1,
+        "wis": 6,
+        "cha": 2
+      },
+      "attacks": [
+        {
+          "name": "Pseudopod",
+          "toHit": 3,
+          "damage": "2d8+1",
+          "damageType": "acid",
+          "range": 1
+        }
+      ],
+      "spriteKey": "swampy",
+      "description": "A slick puddle of corrosive slime that looks like wet stone until it lashes out.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.wolf",
+      "slug": "wolf",
+      "name": "Wolf",
+      "cr": 0.25,
+      "xp": 50,
+      "ac": 12,
+      "hp": 11,
+      "speed": 8,
+      "abilities": {
+        "str": 14,
+        "dex": 15,
+        "con": 12,
+        "int": 3,
+        "wis": 12,
+        "cha": 6
+      },
+      "attacks": [
+        {
+          "name": "Bite",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "range": 1,
+          "inflicts": "prone",
+          "inflictsSave": {
+            "ability": "str",
+            "dc": 11
+          }
+        }
+      ],
+      "spriteKey": "wogol",
+      "description": "A lean grey wolf that circles, waits, and drags its prey to the ground.",
+      "srdVersion": "2024"
+    },
+    {
+      "_id": "monster.giant-spider",
+      "slug": "giant-spider",
+      "name": "Giant Spider",
+      "cr": 1,
+      "xp": 200,
+      "ac": 14,
+      "hp": 26,
+      "speed": 6,
+      "abilities": {
+        "str": 14,
+        "dex": 16,
+        "con": 12,
+        "int": 2,
+        "wis": 11,
+        "cha": 4
+      },
+      "attacks": [
+        {
+          "name": "Bite",
+          "toHit": 5,
+          "damage": "1d8+3",
+          "damageType": "piercing",
+          "range": 1
+        }
+      ],
+      "spriteKey": "chort",
+      "description": "A horse-sized spider with venom-slick fangs, lurking above webbed doorways.",
+      "srdVersion": "2024"
+    }
+  ],
+  "spells": [
+    {
+      "_id": "spell.fire-bolt",
+      "slug": "fire-bolt",
+      "name": "Fire Bolt",
+      "level": 0,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "attack",
+      "range": 12,
+      "dice": "1d10",
+      "damageType": "fire",
+      "radius": 0,
+      "iconKey": "fire",
+      "summary": "Hurl a mote of fire at a creature you can see. On a hit it takes fire damage."
+    },
+    {
+      "_id": "spell.ray-of-frost",
+      "slug": "ray-of-frost",
+      "name": "Ray of Frost",
+      "level": 0,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "attack",
+      "range": 12,
+      "dice": "1d8",
+      "damageType": "cold",
+      "radius": 0,
+      "iconKey": "frost",
+      "summary": "A frigid beam of blue-white light streaks toward a creature, dealing cold damage and slowing it."
+    },
+    {
+      "_id": "spell.sacred-flame",
+      "slug": "sacred-flame",
+      "name": "Sacred Flame",
+      "level": 0,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "dex",
+      "range": 12,
+      "dice": "1d8",
+      "damageType": "radiant",
+      "radius": 0,
+      "iconKey": "holy",
+      "summary": "Flame-like radiance descends on a creature. It must dodge with a Dexterity save or take radiant damage; cover does not help."
+    },
+    {
+      "_id": "spell.magic-missile",
+      "slug": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "attack",
+      "range": 12,
+      "dice": "3d4+3",
+      "damageType": "force",
+      "radius": 0,
+      "iconKey": "arcane",
+      "summary": "Three glowing darts of force streak out and strike unerringly. In this game they resolve as one powerful force attack."
+    },
+    {
+      "_id": "spell.burning-hands",
+      "slug": "burning-hands",
+      "name": "Burning Hands",
+      "level": 1,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "dex",
+      "range": 3,
+      "dice": "3d6",
+      "damageType": "fire",
+      "radius": 1,
+      "iconKey": "fire",
+      "summary": "A thin sheet of flame shoots from your outstretched fingers. Creatures in the blast make a Dexterity save, taking half damage on a success."
+    },
+    {
+      "_id": "spell.thunderwave",
+      "slug": "thunderwave",
+      "name": "Thunderwave",
+      "level": 1,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "con",
+      "range": 0,
+      "dice": "2d8",
+      "damageType": "thunder",
+      "radius": 1,
+      "iconKey": "thunder",
+      "summary": "A wave of thunderous force bursts out from you. Every creature next to you makes a Constitution save or takes the full blast."
+    },
+    {
+      "_id": "spell.hold-person",
+      "slug": "hold-person",
+      "name": "Hold Person",
+      "level": 2,
+      "school": "Enchantment",
+      "concentration": true,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "wis",
+      "range": 12,
+      "inflicts": "paralyzed",
+      "radius": 0,
+      "iconKey": "mind",
+      "summary": "Choose a humanoid you can see. On a failed Wisdom save it is Paralyzed while you concentrate, repeating the save at the end of each of its turns."
+    },
+    {
+      "_id": "spell.sleep",
+      "slug": "sleep",
+      "name": "Sleep",
+      "level": 1,
+      "school": "Enchantment",
+      "concentration": true,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "wis",
+      "range": 12,
+      "inflicts": "unconscious",
+      "radius": 1,
+      "iconKey": "sleep",
+      "summary": "A wave of drowsiness rolls over a small area. Creatures that fail a Wisdom save fall Unconscious until they take damage or the spell ends."
+    },
+    {
+      "_id": "spell.shield-of-faith",
+      "slug": "shield-of-faith",
+      "name": "Shield of Faith",
+      "level": 1,
+      "school": "Abjuration",
+      "concentration": true,
+      "srdVersion": "2024",
+      "kind": "buff",
+      "range": 12,
+      "radius": 0,
+      "iconKey": "shield",
+      "summary": "A shimmering field surrounds an ally, granting it +2 AC while you concentrate."
+    },
+    {
+      "_id": "spell.bless",
+      "slug": "bless",
+      "name": "Bless",
+      "level": 1,
+      "school": "Enchantment",
+      "concentration": true,
+      "srdVersion": "2024",
+      "kind": "buff",
+      "range": 6,
+      "radius": 0,
+      "inflicts": "blessed",
+      "iconKey": "holy",
+      "summary": "You bless an ally. Whenever it makes an attack roll or saving throw, it adds 1d4 to the roll."
+    },
+    {
+      "_id": "spell.cure-wounds",
+      "slug": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "school": "Abjuration",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "heal",
+      "range": 1,
+      "dice": "2d8+3",
+      "radius": 0,
+      "iconKey": "heal",
+      "summary": "A creature you touch regains hit points as warm light knits its wounds."
+    },
+    {
+      "_id": "spell.healing-word",
+      "slug": "healing-word",
+      "name": "Healing Word",
+      "level": 1,
+      "school": "Abjuration",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "heal",
+      "range": 12,
+      "dice": "2d4+3",
+      "radius": 0,
+      "iconKey": "heal",
+      "summary": "You speak a word of power and an ally you can see regains hit points, even from across the room."
+    },
+    {
+      "_id": "spell.guiding-bolt",
+      "slug": "guiding-bolt",
+      "name": "Guiding Bolt",
+      "level": 1,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "attack",
+      "range": 12,
+      "dice": "4d6",
+      "damageType": "radiant",
+      "radius": 0,
+      "iconKey": "holy",
+      "summary": "A flash of light streaks toward a creature, dealing radiant damage and leaving it glowing so the next attack against it has Advantage."
+    },
+    {
+      "_id": "spell.shatter",
+      "slug": "shatter",
+      "name": "Shatter",
+      "level": 2,
+      "school": "Evocation",
+      "concentration": false,
+      "srdVersion": "2024",
+      "kind": "save",
+      "save": "con",
+      "range": 12,
+      "dice": "3d8",
+      "damageType": "thunder",
+      "radius": 1,
+      "iconKey": "thunder",
+      "summary": "A sudden ringing noise erupts at a point you choose. Creatures nearby make a Constitution save, taking half damage on a success."
+    }
+  ],
+  "conditions": [
+    {
+      "_id": "condition.blinded",
+      "slug": "blinded",
+      "name": "Blinded",
+      "effects": [
+        "Can't See: You can't see and automatically fail any ability check that requires sight.",
+        "Attacks Affected: Attack rolls against you have Advantage, and your attack rolls have Disadvantage."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.blinded.2014"
+    },
+    {
+      "_id": "condition.blinded.2014",
+      "slug": "blinded",
+      "name": "Blinded",
+      "effects": [
+        "A blinded creature can't see and automatically fails any ability check that requires sight.",
+        "Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.blinded"
+    },
+    {
+      "_id": "condition.charmed",
+      "slug": "charmed",
+      "name": "Charmed",
+      "effects": [
+        "Can't Harm the Charmer: You can't attack the charmer or target the charmer with damaging abilities or magical effects.",
+        "Social Advantage: The charmer has Advantage on ability checks to interact socially with you."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.charmed.2014"
+    },
+    {
+      "_id": "condition.charmed.2014",
+      "slug": "charmed",
+      "name": "Charmed",
+      "effects": [
+        "A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects.",
+        "The charmer has advantage on any ability check to interact socially with the creature."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.charmed"
+    },
+    {
+      "_id": "condition.deafened",
+      "slug": "deafened",
+      "name": "Deafened",
+      "effects": [
+        "Can't Hear: You can't hear and automatically fail any ability check that requires hearing."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.deafened.2014"
+    },
+    {
+      "_id": "condition.deafened.2014",
+      "slug": "deafened",
+      "name": "Deafened",
+      "effects": [
+        "A deafened creature can't hear and automatically fails any ability check that requires hearing."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.deafened"
+    },
+    {
+      "_id": "condition.frightened",
+      "slug": "frightened",
+      "name": "Frightened",
+      "effects": [
+        "Ability Checks and Attacks Affected: You have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight.",
+        "Can't Approach: You can't willingly move closer to the source of your fear."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.frightened.2014"
+    },
+    {
+      "_id": "condition.frightened.2014",
+      "slug": "frightened",
+      "name": "Frightened",
+      "effects": [
+        "A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight.",
+        "The creature can't willingly move closer to the source of its fear."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.frightened"
+    },
+    {
+      "_id": "condition.grappled",
+      "slug": "grappled",
+      "name": "Grappled",
+      "effects": [
+        "Speed 0: Your Speed is 0 and can't increase.",
+        "Attacks Affected: You have Disadvantage on attack rolls against any target other than the grappler.",
+        "Movable: The grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.grappled.2014"
+    },
+    {
+      "_id": "condition.grappled.2014",
+      "slug": "grappled",
+      "name": "Grappled",
+      "effects": [
+        "A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed.",
+        "The condition ends if the grappler is incapacitated (see the condition).",
+        "The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect, such as when a creature is hurled away by the thunderwave spell."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.grappled"
+    },
+    {
+      "_id": "condition.incapacitated",
+      "slug": "incapacitated",
+      "name": "Incapacitated",
+      "effects": [
+        "Inactive: You can't take any action, Bonus Action, or Reaction.",
+        "No Concentration: Your Concentration is broken.",
+        "Speechless: You can't speak.",
+        "Surprised: If you're Incapacitated when you roll Initiative, you have Disadvantage on the roll."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.incapacitated.2014"
+    },
+    {
+      "_id": "condition.incapacitated.2014",
+      "slug": "incapacitated",
+      "name": "Incapacitated",
+      "effects": [
+        "An incapacitated creature can't take actions or reactions."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.incapacitated"
+    },
+    {
+      "_id": "condition.invisible",
+      "slug": "invisible",
+      "name": "Invisible",
+      "effects": [
+        "Surprise: If you're Invisible when you roll Initiative, you have Advantage on the roll.",
+        "Concealed: You aren't affected by any effect that requires its target to be seen unless the effect's creator can somehow see you. Any equipment you are wearing or carrying is also concealed.",
+        "Attacks Affected: Attack rolls against you have Disadvantage, and your attack rolls have Advantage. If a creature can somehow see you, you don't gain this benefit against that creature."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.invisible.2014"
+    },
+    {
+      "_id": "condition.invisible.2014",
+      "slug": "invisible",
+      "name": "Invisible",
+      "effects": [
+        "An invisible creature is impossible to see without the aid of magic or a special sense. For the purpose of hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves.",
+        "Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.invisible"
+    },
+    {
+      "_id": "condition.paralyzed",
+      "slug": "paralyzed",
+      "name": "Paralyzed",
+      "effects": [
+        "Incapacitated: You have the Incapacitated condition.",
+        "Speed 0: Your Speed is 0 and can't increase.",
+        "Saving Throws Affected: You automatically fail Strength and Dexterity saving throws.",
+        "Attacks Affected: Attack rolls against you have Advantage.",
+        "Automatic Critical Hits: Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.paralyzed.2014"
+    },
+    {
+      "_id": "condition.paralyzed.2014",
+      "slug": "paralyzed",
+      "name": "Paralyzed",
+      "effects": [
+        "A paralyzed creature is incapacitated (see the condition) and can't move or speak.",
+        "The creature automatically fails Strength and Dexterity saving throws.",
+        "Attack rolls against the creature have advantage.",
+        "Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.paralyzed"
+    },
+    {
+      "_id": "condition.petrified",
+      "slug": "petrified",
+      "name": "Petrified",
+      "effects": [
+        "Turned to Inanimate Substance: You are transformed, along with any nonmagical objects you are wearing and carrying, into a solid inanimate substance (usually stone). Your weight increases by a factor of ten, and you cease aging.",
+        "Incapacitated: You have the Incapacitated condition.",
+        "Speed 0: Your Speed is 0 and can't increase.",
+        "Attacks Affected: Attack rolls against you have Advantage.",
+        "Saving Throws Affected: You automatically fail Strength and Dexterity saving throws.",
+        "Resist Damage: You have Resistance to all damage.",
+        "Poison Immunity: You have Immunity to the Poisoned condition.",
+        "Saving Throws Affected: You automatically fail Strength and Dexterity saving throws.",
+        "Resist Damage: You have Resistance to all damage.",
+        "Poison Immunity: You have Immunity to the Poisoned condition."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.petrified.2014"
+    },
+    {
+      "_id": "condition.petrified.2014",
+      "slug": "petrified",
+      "name": "Petrified",
+      "effects": [
+        "A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance (usually stone). Its weight increases by a factor of ten, and it ceases aging.",
+        "The creature is incapacitated (see the condition), can't move or speak, and is unaware of its surroundings.",
+        "Attack rolls against the creature have advantage.",
+        "The creature automatically fails Strength and Dexterity saving throws.",
+        "The creature has resistance to all damage.",
+        "The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.petrified"
+    },
+    {
+      "_id": "condition.poisoned",
+      "slug": "poisoned",
+      "name": "Poisoned",
+      "effects": [
+        "Ability Checks and Attacks Affected: You have Disadvantage on attack rolls and ability checks."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.poisoned.2014"
+    },
+    {
+      "_id": "condition.poisoned.2014",
+      "slug": "poisoned",
+      "name": "Poisoned",
+      "effects": [
+        "A poisoned creature has disadvantage on attack rolls and ability checks."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.poisoned"
+    },
+    {
+      "_id": "condition.prone",
+      "slug": "prone",
+      "name": "Prone",
+      "effects": [
+        "Restricted Movement: Your only movement options are to crawl or to spend an amount of movement equal to half your Speed (round down) to right yourself and thereby end the condition. If your Speed is 0, you can't right yourself.",
+        "Attacks Affected: You have Disadvantage on attack rolls. An attack roll against you has Advantage if the attacker is within 5 feet of you. Otherwise, that attack roll has Disadvantage."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.prone.2014"
+    },
+    {
+      "_id": "condition.prone.2014",
+      "slug": "prone",
+      "name": "Prone",
+      "effects": [
+        "A prone creature's only movement option is to crawl, unless it stands up and thereby ends the condition.",
+        "The creature has disadvantage on attack rolls.",
+        "An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.prone"
+    },
+    {
+      "_id": "condition.restrained",
+      "slug": "restrained",
+      "name": "Restrained",
+      "effects": [
+        "Speed 0: Your Speed is 0 and can't increase.",
+        "Attacks Affected: Attack rolls against you have Advantage, and your attack rolls have Disadvantage.",
+        "Saving Throws Affected: You have Disadvantage on Dexterity saving throws."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.restrained.2014"
+    },
+    {
+      "_id": "condition.restrained.2014",
+      "slug": "restrained",
+      "name": "Restrained",
+      "effects": [
+        "A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed.",
+        "Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage.",
+        "The creature has disadvantage on Dexterity saving throws."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.restrained"
+    },
+    {
+      "_id": "condition.stunned",
+      "slug": "stunned",
+      "name": "Stunned",
+      "effects": [
+        "Incapacitated: You have the Incapacitated condition.",
+        "Saving Throws Affected: You automatically fail Strength and Dexterity saving throws.",
+        "Attacks Affected: Attack rolls against you have Advantage."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.stunned.2014"
+    },
+    {
+      "_id": "condition.stunned.2014",
+      "slug": "stunned",
+      "name": "Stunned",
+      "effects": [
+        "A stunned creature is incapacitated (see the condition), can't move, and can speak only falteringly.",
+        "The creature automatically fails Strength and Dexterity saving throws.",
+        "Attack rolls against the creature have advantage."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.stunned"
+    },
+    {
+      "_id": "condition.unconscious",
+      "slug": "unconscious",
+      "name": "Unconscious",
+      "effects": [
+        "Inert: You have the Incapacitated and Prone conditions, and you drop whatever you're holding. **When this condition ends, you remain Prone.",
+        "Speed 0: Your Speed is 0 and can't increase.",
+        "Attacks Affected: Attack rolls against you have Advantage.",
+        "Saving Throws Affected: You automatically fail Strength and Dexterity saving throws.",
+        "Automatic Critical Hits: Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.",
+        "Unaware: You're unaware of your surroundings."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.unconscious.2014"
+    },
+    {
+      "_id": "condition.unconscious.2014",
+      "slug": "unconscious",
+      "name": "Unconscious",
+      "effects": [
+        "An unconscious creature is incapacitated (see the condition), can't move or speak, and is unaware of its surroundings.",
+        "The creature drops whatever it's holding and falls prone.",
+        "The creature automatically fails Strength and Dexterity saving throws.",
+        "Attack rolls against the creature have advantage.",
+        "Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.unconscious"
+    },
+    {
+      "_id": "condition.exhaustion",
+      "slug": "exhaustion",
+      "name": "Exhaustion",
+      "effects": [
+        "Exhaustion Levels: This condition is cumulative. Each time you receive it, you gain 1 Exhaustion level. You die if your Exhaustion level is 6.",
+        "D20 Tests Affected: When you make a D20 Test, the roll is reduced by 2 times your Exhaustion level.",
+        "Speed Reduced: Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level.",
+        "Removing Exhaustion Levels: Finishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends."
+      ],
+      "srdVersion": "2024",
+      "counterpartId": "condition.exhaustion.2014"
+    },
+    {
+      "_id": "condition.exhaustion.2014",
+      "slug": "exhaustion",
+      "name": "Exhaustion",
+      "effects": [
+        "Some special abilities and environmental hazards, such as starvation and the long-term effects of freezing or scorching temperatures, can lead to a special condition called exhaustion. Exhaustion is measured in six levels. An effect can give a creature one or more levels of exhaustion, as specified in the effect's description.",
+        "1 - Disadvantage on ability checks",
+        "2 - Speed halved",
+        "3 - Disadvantage on attack rolls and saving throws",
+        "4 - Hit point maximum halved",
+        "5 - Speed reduced to 0",
+        "6 - Death",
+        "If an already exhausted creature suffers another effect that causes exhaustion, its current level of exhaustion increases by the amount specified in the effect's description.",
+        "A creature suffers the effect of its current level of exhaustion as well as all lower levels. For example, a creature suffering level 2 exhaustion has its speed halved and has disadvantage on ability checks.",
+        "An effect that removes exhaustion reduces its level as specified in the effect's description, with all exhaustion effects ending if a creature's exhaustion level is reduced below 1.",
+        "Finishing a long rest reduces a creature's exhaustion level by 1, provided that the creature has also ingested some food and drink."
+      ],
+      "srdVersion": "2014",
+      "counterpartId": "condition.exhaustion"
+    },
+    {
+      "_id": "condition.blessed",
+      "slug": "blessed",
+      "name": "Blessed",
+      "srdVersion": "2024",
+      "effects": [
+        "Roll Bonus: Add 1d4 to attack rolls and saving throws while the Bless spell lasts.",
+        "Concentration: Ends early if the caster loses concentration on Bless."
+      ]
+    },
+    {
+      "_id": "condition.dodging",
+      "slug": "dodging",
+      "name": "Dodging",
+      "srdVersion": "2024",
+      "effects": [
+        "Attacks Affected: Attack rolls against you have Disadvantage if you can see the attacker.",
+        "Saves Improved: You have Advantage on Dexterity saving throws.",
+        "Duration: Lasts until the start of your next turn; ends early if you are Incapacitated or your Speed is 0."
+      ]
+    },
+    {
+      "_id": "condition.shield-of-faith",
+      "slug": "shield-of-faith",
+      "name": "Shield of Faith",
+      "srdVersion": "2024",
+      "effects": [
+        "AC Bonus: +2 bonus to Armor Class while the spell lasts.",
+        "Concentration: Ends early if the caster loses concentration on Shield of Faith."
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "_id": "rule.initiative",
+      "slug": "initiative",
+      "title": "Initiative",
+      "section": "Combat",
+      "body": "When combat starts, every participant rolls Initiative: a Dexterity check. The DM ranks combatants from highest to lowest and they act in that order each round. A creature that is Surprised has Disadvantage on its Initiative roll, and an Invisible creature has Advantage. Ties are decided by the DM for monsters and by the players for characters.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.initiative.2014",
+        "rule.surprise",
+        "condition.invisible",
+        "condition.incapacitated",
+        "rule.d20-tests"
+      ]
+    },
+    {
+      "_id": "rule.initiative.2014",
+      "slug": "initiative",
+      "title": "Initiative",
+      "section": "Combat",
+      "body": "Initiative determines the order of turns during combat. When combat starts, every participant makes a Dexterity check to determine their place in the initiative order. The GM makes one roll for an entire group of identical creatures, so each member of the group acts at the same time.\n\nThe GM ranks the combatants in order from the one with the highest Dexterity check total to the one with the lowest. This is the order (called the initiative order) in which they act during each round. The initiative order remains the same from round to round.\n\nIf a tie occurs, the GM decides the order among tied GM-controlled creatures, and the players decide the order among their tied characters. The GM can decide the order if the tie is between a monster and a player character. Optionally, the GM can have the tied characters and monsters each roll a d20 to determine the order, highest roll going first.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.initiative",
+        "rule.surprise.2014"
+      ]
+    },
+    {
+      "_id": "rule.surprise",
+      "slug": "surprise",
+      "title": "Surprise",
+      "section": "Combat",
+      "body": "If a combatant is caught off guard when combat begins, typically because it failed to notice hidden enemies, it is Surprised. A Surprised creature has Disadvantage on its Initiative roll. Unlike the 2014 rules, surprise no longer costs the creature its first turn.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.surprise.2014",
+        "rule.initiative",
+        "rule.hide",
+        "rule.advantage"
+      ]
+    },
+    {
+      "_id": "rule.surprise.2014",
+      "slug": "surprise",
+      "title": "Surprise",
+      "section": "Combat",
+      "body": "A band of adventurers sneaks up on a bandit camp, springing from the trees to attack them. A gelatinous cube glides down a dungeon passage, unnoticed by the adventurers until the cube engulfs one of them. In these situations, one side of the battle gains surprise over the other.\n\nThe GM determines who might be surprised. If neither side tries to be stealthy, they automatically notice each other. Otherwise, the GM compares the Dexterity (Stealth) checks of anyone hiding with the passive Wisdom (Perception) score of each creature on the opposing side. Any character or monster that doesn't notice a threat is surprised at the start of the encounter.\n\nIf you're surprised, you can't move or take an action on your first turn of the combat, and you can't take a reaction until that turn ends. A member of a group can be surprised even if the other members aren't.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.surprise",
+        "rule.initiative.2014",
+        "rule.hide.2014",
+        "rule.advantage.2014"
+      ]
+    },
+    {
+      "_id": "rule.your-turn",
+      "slug": "your-turn",
+      "title": "Your Turn",
+      "section": "Combat",
+      "body": "On your turn you can move a distance up to your Speed and take one action. You may also take one Bonus Action if a feature grants one, and one Reaction per round, even on other turns. You can split your movement before and after your action, and you can communicate briefly for free.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.your-turn.2014",
+        "rule.attack-action",
+        "rule.dash",
+        "rule.dodge",
+        "rule.magic-action",
+        "rule.movement"
+      ]
+    },
+    {
+      "_id": "rule.your-turn.2014",
+      "slug": "your-turn",
+      "title": "Your Turn",
+      "section": "Combat",
+      "body": "On your turn, you can move a distance up to your speed and take one action. You decide whether to move first or take your action first. Your speed--sometimes called your walking speed--is noted on your character sheet.\n\nThe most common actions you can take are described in the \"Actions in Combat\" section later in this chapter. Many class features and other abilities provide additional options for your action.\n\nThe \"Movement and Position\" section later in this chapter gives the rules for your move.\n\nYou can forgo moving, taking an action, or doing anything at all on your turn. If you can't decide what to do on your turn, consider taking the Dodge or Ready action, as described in \"Actions in Combat.\"\n\nVarious class features, spells, and other abilities let you take an additional action on your turn called a bonus action. The Cunning Action feature, for example, allows a rogue to take a bonus action.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.your-turn",
+        "rule.attack-action.2014",
+        "rule.dash.2014",
+        "rule.dodge.2014",
+        "rule.magic-action.2014",
+        "rule.movement.2014"
+      ]
+    },
+    {
+      "_id": "rule.movement",
+      "slug": "movement",
+      "title": "Movement and Position",
+      "section": "Combat",
+      "body": "You can move up to your Speed on your turn and break the move up around your action. You can move through an ally's space but not an enemy's unless it is two sizes different. Difficult terrain costs 1 extra foot per foot moved. In this game, Speed is measured in 5-foot tiles and diagonals cost one tile.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.movement.2014",
+        "rule.difficult-terrain",
+        "rule.being-prone",
+        "condition.grappled",
+        "condition.restrained",
+        "rule.opportunity-attacks"
+      ]
+    },
+    {
+      "_id": "rule.movement.2014",
+      "slug": "movement",
+      "title": "Movement and Position",
+      "section": "Combat",
+      "body": "You can break up your movement on your turn, using some of your speed before and after your action. For example, if you have a speed of 30 feet, you can move 10 feet, take your action, and then move 20 feet.\n\nIf you take an action that includes more than one weapon attack, you can break up your movement even further by moving between those attacks. For example, a fighter who can make two attacks with the Extra Attack feature and who has a speed of 25 feet could move 10 feet, make an attack, move 15 feet, and then attack again.\n\nIf you have more than one speed, such as your walking speed and a flying speed, you can switch back and forth between your speeds during your move. Whenever you switch, subtract the distance you've already moved from the new speed. The result determines how much farther you can move. If the result is 0 or less, you can't use the new speed during the current move.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.movement",
+        "rule.difficult-terrain.2014",
+        "rule.being-prone.2014",
+        "rule.opportunity-attacks.2014"
+      ]
+    },
+    {
+      "_id": "rule.difficult-terrain",
+      "slug": "difficult-terrain",
+      "title": "Difficult Terrain",
+      "section": "Combat",
+      "body": "Every foot of movement in Difficult Terrain costs 1 extra foot. Rubble, undergrowth, steep stairs, snow and shallow bogs are typical examples, and so is a space occupied by another creature, whether friend or foe.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.difficult-terrain.2014",
+        "rule.movement"
+      ]
+    },
+    {
+      "_id": "rule.difficult-terrain.2014",
+      "slug": "difficult-terrain",
+      "title": "Difficult Terrain",
+      "section": "Combat",
+      "body": "Combat rarely takes place in bare rooms or on featureless plains. Boulder-strewn caverns, briar-choked forests, treacherous staircases-the setting of a typical fight contains difficult terrain.\n\nEvery foot of movement in difficult terrain costs 1 extra foot. This rule is true even if multiple things in a space count as difficult terrain.\n\nLow furniture, rubble, undergrowth, steep stairs, snow, and shallow bogs are examples of difficult terrain. The space of another creature, whether hostile or not, also counts as difficult terrain.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.difficult-terrain",
+        "rule.movement.2014"
+      ]
+    },
+    {
+      "_id": "rule.being-prone",
+      "slug": "being-prone",
+      "title": "Being Prone",
+      "section": "Combat",
+      "body": "You can drop Prone without using any movement. Standing up costs movement equal to half your Speed, and you can't stand if you lack the movement. While Prone you can only crawl, which costs 1 extra foot per foot moved.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.being-prone.2014",
+        "condition.prone",
+        "rule.movement",
+        "rule.shove"
+      ]
+    },
+    {
+      "_id": "rule.being-prone.2014",
+      "slug": "being-prone",
+      "title": "Being Prone",
+      "section": "Combat",
+      "body": "Combatants often find themselves lying on the ground, either because they are knocked down or because they throw themselves down. In the game, they are prone, a condition described in appendix PH-A.\n\nYou can drop prone without using any of your speed. Standing up takes more effort; doing so costs an amount of movement equal to half your speed. For example, if your speed is 30 feet, you must spend\n\n15 feet of movement to stand up. You can't stand up if you don't have enough movement left or if your speed is 0.\n\nTo move while prone, you must crawl or use magic such as teleportation. Every foot of movement while crawling costs 1 extra foot. Crawling 1 foot in difficult terrain, therefore, costs 3 feet of movement.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.being-prone",
+        "rule.movement.2014",
+        "rule.shove.2014"
+      ]
+    },
+    {
+      "_id": "rule.opportunity-attacks",
+      "slug": "opportunity-attacks",
+      "title": "Opportunity Attacks",
+      "section": "Combat",
+      "body": "You can make an Opportunity Attack when a creature you can see leaves your reach using its action, Bonus Action, Reaction or movement. You use your Reaction to make one melee attack against it right before it leaves. Taking the Disengage action, or being moved without using your own movement, avoids Opportunity Attacks.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.opportunity-attacks.2014",
+        "rule.disengage",
+        "rule.reactions",
+        "rule.attack-rolls"
+      ]
+    },
+    {
+      "_id": "rule.opportunity-attacks.2014",
+      "slug": "opportunity-attacks",
+      "title": "Opportunity Attacks",
+      "section": "Combat",
+      "body": "In a fight, everyone is constantly watching for a chance to strike an enemy who is fleeing or passing by. Such a strike is called an opportunity attack.\n\nYou can make an opportunity attack when a hostile creature that you can see moves out of your reach. To make the opportunity attack, you use your reaction to make one melee attack against the provoking creature. The attack occurs right before the creature leaves your reach.\n\nYou can avoid provoking an opportunity attack by taking the Disengage action. You also don't provoke an opportunity attack when you teleport or when someone or something moves you without using your movement, action, or reaction. For example, you don't provoke an opportunity attack if an explosion hurls you out of a foe's reach or if gravity causes you to fall past an enemy.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.opportunity-attacks",
+        "rule.disengage.2014",
+        "rule.reactions.2014",
+        "rule.attack-rolls.2014"
+      ]
+    },
+    {
+      "_id": "rule.reactions",
+      "slug": "reactions",
+      "title": "Reactions",
+      "section": "Combat",
+      "body": "A Reaction is an instant response to a trigger, such as an Opportunity Attack or a spell like Shield. You get one Reaction per round and regain it at the start of each of your turns. An Incapacitated creature can't take Reactions.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.reactions.2014",
+        "rule.opportunity-attacks",
+        "condition.incapacitated"
+      ]
+    },
+    {
+      "_id": "rule.reactions.2014",
+      "slug": "reactions",
+      "title": "Reactions",
+      "section": "Combat",
+      "body": "Certain special abilities, spells, and situations allow you to take a special action called a reaction. A reaction is an instant response to a trigger of some kind, which can occur on your turn or on someone else's. The opportunity attack, described later in this chapter, is the most common type of reaction.\n\nWhen you take a reaction, you can't take another one until the start of your next turn. If the reaction interrupts another creature's turn, that creature can continue its turn right after the reaction.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.reactions",
+        "rule.opportunity-attacks.2014"
+      ]
+    },
+    {
+      "_id": "rule.attack-action",
+      "slug": "attack-action",
+      "title": "Attack Action",
+      "section": "Actions",
+      "body": "When you take the Attack action, you make one attack roll with a weapon or an Unarmed Strike. Features such as Extra Attack let you make more than one attack with the same action. You can equip or unequip one weapon as part of each attack.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.attack-action.2014",
+        "rule.attack-rolls",
+        "rule.critical-hits",
+        "rule.ranged-attacks",
+        "rule.two-weapon-fighting"
+      ]
+    },
+    {
+      "_id": "rule.attack-action.2014",
+      "slug": "attack-action",
+      "title": "Attack Action",
+      "section": "Actions",
+      "body": "The most common action to take in combat is the Attack action, whether you are swinging a sword, firing an arrow from a bow, or brawling with your fists.\n\nWith this action, you make one melee or ranged attack. See the \"Making an Attack\" section for the rules that govern attacks.\n\nCertain features, such as the Extra Attack feature of the fighter, allow you to make more than one attack with this action.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.attack-action",
+        "rule.attack-rolls.2014",
+        "rule.critical-hits.2014",
+        "rule.ranged-attacks.2014",
+        "rule.two-weapon-fighting.2014"
+      ]
+    },
+    {
+      "_id": "rule.dash",
+      "slug": "dash",
+      "title": "Dash",
+      "section": "Actions",
+      "body": "When you take the Dash action, you gain extra movement for the current turn equal to your Speed after modifiers. If your Speed is 0, Dash gives you nothing.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.dash.2014",
+        "rule.movement",
+        "rule.your-turn"
+      ]
+    },
+    {
+      "_id": "rule.dash.2014",
+      "slug": "dash",
+      "title": "Dash",
+      "section": "Actions",
+      "body": "When you take the Dash action, you gain extra movement for the current turn. The increase equals your speed, after applying any modifiers. With a speed of 30 feet, for example, you can move up to 60 feet on your turn if you dash.\n\nAny increase or decrease to your speed changes this additional movement by the same amount. If your speed of 30 feet is reduced to 15 feet, for instance, you can move up to 30 feet this turn if you dash.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.dash",
+        "rule.movement.2014",
+        "rule.your-turn.2014"
+      ]
+    },
+    {
+      "_id": "rule.disengage",
+      "slug": "disengage",
+      "title": "Disengage",
+      "section": "Actions",
+      "body": "If you take the Disengage action, your movement doesn't provoke Opportunity Attacks for the rest of the current turn.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.disengage.2014",
+        "rule.opportunity-attacks"
+      ]
+    },
+    {
+      "_id": "rule.disengage.2014",
+      "slug": "disengage",
+      "title": "Disengage",
+      "section": "Actions",
+      "body": "If you take the Disengage action, your movement doesn't provoke opportunity attacks for the rest of the turn.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.disengage",
+        "rule.opportunity-attacks.2014"
+      ]
+    },
+    {
+      "_id": "rule.dodge",
+      "slug": "dodge",
+      "title": "Dodge",
+      "section": "Actions",
+      "body": "Until the start of your next turn, any attack roll made against you has Disadvantage if you can see the attacker, and you make Dexterity saving throws with Advantage. You lose these benefits if you have the Incapacitated condition or your Speed is 0.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.dodge.2014",
+        "condition.dodging",
+        "rule.advantage",
+        "condition.incapacitated"
+      ]
+    },
+    {
+      "_id": "rule.dodge.2014",
+      "slug": "dodge",
+      "title": "Dodge",
+      "section": "Actions",
+      "body": "When you take the Dodge action, you focus entirely on avoiding attacks. Until the start of your next turn, any attack roll made against you has disadvantage if you can see the attacker, and you make Dexterity saving throws with advantage. You lose this benefit if you are incapacitated (as explained in appendix PH-A) or if your speed drops to 0.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.dodge",
+        "rule.advantage.2014"
+      ]
+    },
+    {
+      "_id": "rule.help",
+      "slug": "help",
+      "title": "Help",
+      "section": "Actions",
+      "body": "Take the Help action to assist an ally. Assist an ability check: choose a skill or tool you are proficient in and one ally; their next check with it has Advantage. Assist an attack: choose an enemy within 5 feet of you; the next attack roll by one of your allies against it has Advantage. Either benefit expires at the start of your next turn.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.help.2014",
+        "rule.advantage",
+        "rule.attack-rolls"
+      ]
+    },
+    {
+      "_id": "rule.help.2014",
+      "slug": "help",
+      "title": "Help",
+      "section": "Actions",
+      "body": "You can lend your aid to another creature in the completion of a task. When you take the Help action, the creature you aid gains advantage on the next ability check it makes to perform the task you are helping with, provided that it makes the check before the start of your next turn.\n\nAlternatively, you can aid a friendly creature in attacking a creature within 5 feet of you. You feint, distract the target, or in some other way team up to make your ally's attack more effective. If your ally attacks the target before your next turn, the first attack roll is made with advantage.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.help",
+        "rule.advantage.2014",
+        "rule.attack-rolls.2014"
+      ]
+    },
+    {
+      "_id": "rule.hide",
+      "slug": "hide",
+      "title": "Hide",
+      "section": "Actions",
+      "body": "With the Hide action you make a DC 15 Dexterity (Stealth) check while Heavily Obscured or behind Three-Quarters or Total Cover, out of any enemy's line of sight. On a success you gain the Invisible condition, and your check total becomes the DC to find you. It ends if you make noise, attack, cast a spell with a Verbal component, or an enemy finds you.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.hide.2014",
+        "condition.invisible",
+        "rule.cover",
+        "rule.unseen-attackers",
+        "rule.surprise"
+      ]
+    },
+    {
+      "_id": "rule.hide.2014",
+      "slug": "hide",
+      "title": "Hide",
+      "section": "Actions",
+      "body": "When you take the Hide action, you make a Dexterity (Stealth) check in an attempt to hide, following the rules for hiding. If you succeed, you gain certain benefits, as described in the \"Unseen Attackers and Targets\" section later in this chapter.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.hide",
+        "rule.cover.2014",
+        "rule.unseen-attackers.2014",
+        "rule.surprise.2014"
+      ]
+    },
+    {
+      "_id": "rule.ready",
+      "slug": "ready",
+      "title": "Ready",
+      "section": "Actions",
+      "body": "Use the Ready action to prepare to act later. Choose a perceivable trigger and the action you will take in response, then use your Reaction when it occurs. Readying a spell means casting it now, holding its energy with Concentration, and releasing it when triggered.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.ready.2014",
+        "rule.reactions",
+        "rule.concentration"
+      ]
+    },
+    {
+      "_id": "rule.ready.2014",
+      "slug": "ready",
+      "title": "Ready",
+      "section": "Actions",
+      "body": "Sometimes you want to get the jump on a foe or wait for a particular circumstance before you act. To do so, you can take the Ready action on your turn, which lets you act using your reaction before the start of your next turn.\n\nFirst, you decide what perceivable circumstance will trigger your reaction. Then, you choose the action you will take in response to that trigger, or you choose to move up to your speed in response to it. Examples include \"If the cultist steps on the trapdoor, I'll pull the lever that opens it,\" and \"If the goblin steps next to me, I move away.\"\n\nWhen the trigger occurs, you can either take your reaction right after the trigger finishes or ignore the trigger. Remember that you can take only one reaction per round.\n\nWhen you ready a spell, you cast it as normal but hold its energy, which you release with your reaction when the trigger occurs. To be readied, a spell must have a casting time of 1 action, and holding onto the spell's magic requires concentration.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.ready",
+        "rule.reactions.2014",
+        "rule.concentration.2014"
+      ]
+    },
+    {
+      "_id": "rule.magic-action",
+      "slug": "magic-action",
+      "title": "Magic Action",
+      "section": "Actions",
+      "body": "When you take the Magic action you cast a spell with a casting time of an action, or use a feature or magic item that requires a Magic action to activate.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.magic-action.2014",
+        "rule.spell-attack-rolls",
+        "rule.spell-saving-throws",
+        "rule.spell-slots",
+        "rule.concentration"
+      ]
+    },
+    {
+      "_id": "rule.magic-action.2014",
+      "slug": "magic-action",
+      "title": "Magic Action",
+      "section": "Actions",
+      "body": "Spellcasters such as wizards and clerics, as well as many monsters, have access to spells and can use them to great effect in combat. Each spell has a casting time, which specifies whether the caster must use an action, a reaction, minutes, or even hours to cast the spell. Casting a spell is, therefore, not necessarily an action. Most spells do have a casting time of 1 action, so a spellcaster often uses his or her action in combat to cast such a spell.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.magic-action",
+        "rule.spell-attack-rolls.2014",
+        "rule.spell-saving-throws.2014",
+        "rule.spell-slots.2014",
+        "rule.concentration.2014"
+      ]
+    },
+    {
+      "_id": "rule.attack-rolls",
+      "slug": "attack-rolls",
+      "title": "Attack Rolls",
+      "section": "Combat",
+      "body": "To make an attack roll, roll a d20 and add your ability modifier (Strength for melee, Dexterity for ranged, or your spellcasting ability for spells) plus your Proficiency Bonus if proficient. If the total equals or exceeds the target's Armor Class, the attack hits. A natural 20 always hits and is a Critical Hit; a natural 1 always misses.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.attack-rolls.2014",
+        "rule.critical-hits",
+        "rule.advantage",
+        "rule.cover",
+        "rule.d20-tests",
+        "condition.blinded",
+        "condition.prone",
+        "condition.restrained",
+        "spell.bless",
+        "spell.shield-of-faith"
+      ]
+    },
+    {
+      "_id": "rule.attack-rolls.2014",
+      "slug": "attack-rolls",
+      "title": "Attack Rolls",
+      "section": "Combat",
+      "body": "When you make an attack, your attack roll determines whether the attack hits or misses. To make an attack roll, roll a d20 and add the appropriate modifiers. If the total of the roll plus modifiers equals or exceeds the target's Armor Class (AC), the attack hits. The AC of a character is determined at character creation, whereas the AC of a monster is in its stat block.\n\nWhen a character makes an attack roll, the two most common modifiers to the roll are an ability modifier and the character's proficiency bonus. When a monster makes an attack roll, it uses whatever modifier is provided in its stat block.\n\nAbility Modifier. The ability modifier used for a melee weapon attack is Strength, and the ability modifier used for a ranged weapon attack is Dexterity. Weapons that have the finesse or thrown property break this rule.\n\nSome spells also require an attack roll. The ability modifier used for a spell attack depends on the spellcasting ability of the spellcaster.\n\nProficiency Bonus.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.attack-rolls",
+        "rule.critical-hits.2014",
+        "rule.advantage.2014",
+        "rule.cover.2014"
+      ]
+    },
+    {
+      "_id": "rule.critical-hits",
+      "slug": "critical-hits",
+      "title": "Critical Hits",
+      "section": "Combat",
+      "body": "When you score a Critical Hit (a natural 20 on the attack roll), roll the attack's damage dice twice and add them together, then add any modifiers as normal. Melee attacks against a Paralyzed or Unconscious creature within 5 feet are automatically Critical Hits.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.critical-hits.2014",
+        "rule.attack-rolls",
+        "condition.paralyzed",
+        "condition.unconscious",
+        "rule.damage-rolls"
+      ]
+    },
+    {
+      "_id": "rule.critical-hits.2014",
+      "slug": "critical-hits",
+      "title": "Critical Hits",
+      "section": "Combat",
+      "body": "When you score a critical hit, you get to roll extra dice for the attack's damage against the target. Roll all of the attack's damage dice twice and add them together. Then add any relevant modifiers as normal. To speed up play, you can roll all the damage dice at once.\n\nFor example, if you score a critical hit with a dagger, roll 2d4 for the damage, rather than 1d4, and then add your relevant ability modifier. If the attack involves other damage dice, such as from the rogue's Sneak Attack feature, you roll those dice twice as well.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.critical-hits",
+        "rule.attack-rolls.2014",
+        "rule.damage-rolls.2014"
+      ]
+    },
+    {
+      "_id": "rule.damage-rolls",
+      "slug": "damage-rolls",
+      "title": "Damage Rolls",
+      "section": "Combat",
+      "body": "Each weapon, spell and harmful monster ability specifies the damage it deals. Roll the damage dice, add modifiers, and subtract the total from the target's Hit Points. When a spell or effect damages several targets at once, roll the damage once for all of them.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.damage-rolls.2014",
+        "rule.critical-hits",
+        "rule.resistance-and-vulnerability",
+        "rule.hit-points"
+      ]
+    },
+    {
+      "_id": "rule.damage-rolls.2014",
+      "slug": "damage-rolls",
+      "title": "Damage Rolls",
+      "section": "Combat",
+      "body": "Each weapon, spell, and harmful monster ability specifies the damage it deals. You roll the damage die or dice, add any modifiers, and apply the damage to your target. Magic weapons, special abilities, and other factors can grant a bonus to damage. With a penalty, it is possible to deal 0 damage, but never negative damage.\n\nWhen attacking with a weapon, you add your ability modifier-the same modifier used for the attack roll-to the damage. A spell tells you which dice to roll for damage and whether to add any modifiers.\n\nIf a spell or other effect deals damage to more than one target at the same time, roll the damage once for all of them. For example, when a wizard casts fireball or a cleric casts flame strike, the spell's damage is rolled once for all creatures caught in the blast.\n\nWhen you score a critical hit, you get to roll extra dice for the attack's damage against the target. Roll all of the attack's damage dice twice and add them together.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.damage-rolls",
+        "rule.critical-hits.2014",
+        "rule.resistance-and-vulnerability.2014",
+        "rule.hit-points.2014"
+      ]
+    },
+    {
+      "_id": "rule.advantage",
+      "slug": "advantage",
+      "title": "Advantage and Disadvantage",
+      "section": "Core Rules",
+      "body": "With Advantage you roll two d20s and use the higher; with Disadvantage you roll two and use the lower. If circumstances give you both, they cancel out and you roll one d20, no matter how many sources of each you have. Advantage and Disadvantage apply to D20 Tests: attack rolls, ability checks and saving throws.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.advantage.2014",
+        "rule.d20-tests",
+        "rule.help",
+        "rule.heroic-inspiration",
+        "condition.blinded",
+        "condition.invisible",
+        "condition.prone",
+        "condition.restrained",
+        "condition.poisoned",
+        "condition.frightened",
+        "condition.dodging"
+      ]
+    },
+    {
+      "_id": "rule.advantage.2014",
+      "slug": "advantage",
+      "title": "Advantage and Disadvantage",
+      "section": "Core Rules",
+      "body": "Sometimes a special ability or spell tells you that you have advantage or disadvantage on an ability check, a saving throw, or an attack roll. When that happens, you roll a second d20 when you make the roll. Use the higher of the two rolls if you have advantage, and use the lower roll if you have disadvantage. For example, if you have disadvantage and roll a 17 and a 5, you use the 5. If you instead have advantage and roll those numbers, you use the 17.\n\nIf multiple situations affect a roll and each one grants advantage or imposes disadvantage on it, you don't roll more than one additional d20. If two favorable situations grant advantage, for example, you still roll only one additional d20.\n\nIf circumstances cause a roll to have both advantage and disadvantage, you are considered to have neither of them, and you roll one d20. This is true even if multiple circumstances impose disadvantage and only one grants advantage or vice versa.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.advantage",
+        "rule.help.2014"
+      ]
+    },
+    {
+      "_id": "rule.ranged-attacks",
+      "slug": "ranged-attacks",
+      "title": "Ranged Attacks",
+      "section": "Combat",
+      "body": "A ranged attack has a normal and a long range; attacks beyond normal range have Disadvantage, and you can't attack beyond long range. You also have Disadvantage on a ranged attack roll if you are within 5 feet of an enemy that can see you and doesn't have the Incapacitated condition.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.ranged-attacks.2014",
+        "rule.attack-rolls",
+        "rule.advantage",
+        "rule.cover",
+        "condition.prone"
+      ]
+    },
+    {
+      "_id": "rule.ranged-attacks.2014",
+      "slug": "ranged-attacks",
+      "title": "Ranged Attacks",
+      "section": "Combat",
+      "body": "When you make a ranged attack, you fire a bow or a crossbow, hurl a handaxe, or otherwise send projectiles to strike a foe at a distance. A monster might shoot spines from its tail. Many spells also involve making a ranged attack.\n\nYou can make ranged attacks only against targets within a specified range.\n\nIf a ranged attack, such as one made with a spell, has a single range, you can't attack a target beyond this range.\n\nSome ranged attacks, such as those made with a longbow or a shortbow, have two ranges. The smaller number is the normal range, and the larger number is the long range. Your attack roll has disadvantage when your target is beyond normal range, and you can't attack a target beyond the long range.\n\nAiming a ranged attack is more difficult when a foe is next to you. When you make a ranged attack with a weapon, a spell, or some other means, you have disadvantage on the attack roll if you are within 5 feet of a hostile creature who can see you and who isn't incapacitated.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.ranged-attacks",
+        "rule.attack-rolls.2014",
+        "rule.advantage.2014",
+        "rule.cover.2014"
+      ]
+    },
+    {
+      "_id": "rule.unseen-attackers",
+      "slug": "unseen-attackers",
+      "title": "Unseen Attackers and Targets",
+      "section": "Combat",
+      "body": "If you attack a target you can't see, you have Disadvantage on the roll, and you must guess its location. When a creature can't see you, you have Advantage on attack rolls against it. If you are hidden, you give away your location when the attack hits or misses.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.unseen-attackers.2014",
+        "condition.invisible",
+        "condition.blinded",
+        "rule.hide",
+        "rule.advantage"
+      ]
+    },
+    {
+      "_id": "rule.unseen-attackers.2014",
+      "slug": "unseen-attackers",
+      "title": "Unseen Attackers and Targets",
+      "section": "Combat",
+      "body": "Combatants often try to escape their foes' notice by hiding, casting the invisibility spell, or lurking in darkness.\n\nWhen you attack a target that you can't see, you have disadvantage on the attack roll. This is true whether you're guessing the target's location or you're targeting a creature you can hear but not see. If the target isn't in the location you targeted, you automatically miss, but the GM typically just says that the attack missed, not whether you guessed the target's location correctly.\n\nWhen a creature can't see you, you have advantage on attack rolls against it. If you are hidden-both unseen and unheard-when you make an attack, you give away your location when the attack hits or misses.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.unseen-attackers",
+        "rule.hide.2014",
+        "rule.advantage.2014"
+      ]
+    },
+    {
+      "_id": "rule.cover",
+      "slug": "cover",
+      "title": "Cover",
+      "section": "Combat",
+      "body": "Walls, creatures and obstacles can provide cover. Half Cover gives +2 to AC and Dexterity saving throws; Three-Quarters Cover gives +5; Total Cover means the target can't be targeted directly by an attack or spell. Only the most protective degree of cover applies.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.cover.2014",
+        "rule.attack-rolls",
+        "rule.ranged-attacks",
+        "rule.hide",
+        "spell.sacred-flame"
+      ]
+    },
+    {
+      "_id": "rule.cover.2014",
+      "slug": "cover",
+      "title": "Cover",
+      "section": "Combat",
+      "body": "Walls, trees, creatures, and other obstacles can provide cover during combat, making a target more difficult to harm. A target can benefit from cover only when an attack or other effect originates on the opposite side of the cover.\n\nThere are three degrees of cover. If a target is behind multiple sources of cover, only the most protective degree of cover applies; the degrees aren't added together. For example, if a target is behind a creature that gives half cover and a tree trunk that gives three-quarters cover, the target has three-quarters cover.\n\nA target with half cover has a +2 bonus to AC and Dexterity saving throws. A target has half cover if an obstacle blocks at least half of its body. The obstacle might be a low wall, a large piece of furniture, a narrow tree trunk, or a creature, whether that creature is an enemy or a friend.\n\nA target with three-quarters cover has a +5 bonus to AC and Dexterity saving throws.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.cover",
+        "rule.attack-rolls.2014",
+        "rule.ranged-attacks.2014",
+        "rule.hide.2014"
+      ]
+    },
+    {
+      "_id": "rule.two-weapon-fighting",
+      "slug": "two-weapon-fighting",
+      "title": "Two-Weapon Fighting",
+      "section": "Combat",
+      "body": "In the 2024 rules this is handled by the Light weapon property: when you attack with a Light weapon as part of the Attack action, you can make one extra attack as a Bonus Action with a different Light weapon. You don't add your ability modifier to that extra attack's damage unless the modifier is negative.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.two-weapon-fighting.2014",
+        "rule.attack-action"
+      ]
+    },
+    {
+      "_id": "rule.two-weapon-fighting.2014",
+      "slug": "two-weapon-fighting",
+      "title": "Two-Weapon Fighting",
+      "section": "Combat",
+      "body": "When you take the Attack action and attack with a light melee weapon that you're holding in one hand, you can use a bonus action to attack with a different light melee weapon that you're holding in the other hand. You don't add your ability modifier to the damage of the bonus attack, unless that modifier is negative.\n\nIf either weapon has the thrown property, you can throw the weapon, instead of making a melee attack with it.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.two-weapon-fighting",
+        "rule.attack-action.2014"
+      ]
+    },
+    {
+      "_id": "rule.grappling",
+      "slug": "grappling",
+      "title": "Grappling",
+      "section": "Combat",
+      "body": "Grappling is an Unarmed Strike option. The target must be no more than one size larger and within reach; instead of an attack roll it makes a Strength or Dexterity saving throw (its choice) against DC 8 + your Strength modifier + Proficiency Bonus. On a failure it has the Grappled condition. It can use its action to escape with an Athletics or Acrobatics check against the same escape DC.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.grappling.2014",
+        "condition.grappled",
+        "rule.shove",
+        "rule.saving-throws"
+      ]
+    },
+    {
+      "_id": "rule.grappling.2014",
+      "slug": "grappling",
+      "title": "Grappling",
+      "section": "Combat",
+      "body": "When you want to grab a creature or wrestle with it, you can use the Attack action to make a special melee attack, a grapple. If you're able to make multiple attacks with the Attack action, this attack replaces one of them.\n\nThe target of your grapple must be no more than one size larger than you and must be within your reach. Using at least one free hand, you try to seize the target by making a grapple check instead of an attack roll: a Strength (Athletics) check contested by the target's Strength (Athletics) or Dexterity (Acrobatics) check (the target chooses the ability to use). If you succeed, you subject the target to the grappled condition (see appendix PH-A). The condition specifies the things that end it, and you can release the target whenever you like (no action required).\n\nEscaping a Grapple. A grappled creature can use its action to escape. To do so, it must succeed on a Strength (Athletics) or Dexterity (Acrobatics) check contested by your Strength\n(Athletics) check.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.grappling",
+        "rule.shove.2014",
+        "rule.saving-throws.2014"
+      ]
+    },
+    {
+      "_id": "rule.shove",
+      "slug": "shove",
+      "title": "Shoving",
+      "section": "Combat",
+      "body": "Shoving is an Unarmed Strike option. A target no more than one size larger makes a Strength or Dexterity saving throw against DC 8 + your Strength modifier + Proficiency Bonus. On a failure you either push it 5 feet away or knock it Prone.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.shove.2014",
+        "condition.prone",
+        "rule.grappling",
+        "rule.being-prone"
+      ]
+    },
+    {
+      "_id": "rule.shove.2014",
+      "slug": "shove",
+      "title": "Shoving",
+      "section": "Combat",
+      "body": "Using the Attack action, you can make a special melee attack to shove a creature, either to knock it prone or push it away from you. If you're able to make multiple attacks with the Attack action, this attack replaces one of them.\n\nThe target must be no more than one size larger than you and must be within your reach. Instead of making an attack roll, you make a Strength (Athletics) check contested by the target's Strength (Athletics) or Dexterity (Acrobatics) check (the target chooses the ability to use). If you win the contest, you either knock the target prone or push it 5 feet away from you.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.shove",
+        "rule.grappling.2014",
+        "rule.being-prone.2014"
+      ]
+    },
+    {
+      "_id": "rule.hit-points",
+      "slug": "hit-points",
+      "title": "Hit Points",
+      "section": "Damage and Healing",
+      "body": "Hit Points represent durability and the will to live. A creature's current Hit Points can be any number from its Hit Point maximum down to 0. Damage reduces current Hit Points; healing restores them but never above the maximum.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.hit-points.2014",
+        "rule.dropping-to-0",
+        "rule.healing",
+        "rule.temporary-hit-points",
+        "rule.damage-rolls"
+      ]
+    },
+    {
+      "_id": "rule.hit-points.2014",
+      "slug": "hit-points",
+      "title": "Hit Points",
+      "section": "Damage and Healing",
+      "body": "Hit points represent a combination of physical and mental durability, the will to live, and luck. Creatures with more hit points are more difficult to kill. Those with fewer hit points are more fragile.\n\nA creature's current hit points (usually just called hit points) can be any number from the creature's hit point maximum down to 0. This number changes frequently as a creature takes damage or receives healing.\n\nWhenever a creature takes damage, that damage is subtracted from its hit points. The loss of hit points has no effect on a creature's capabilities until the creature drops to 0 hit points.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.hit-points",
+        "rule.dropping-to-0.2014",
+        "rule.healing.2014",
+        "rule.temporary-hit-points.2014",
+        "rule.damage-rolls.2014"
+      ]
+    },
+    {
+      "_id": "rule.resistance-and-vulnerability",
+      "slug": "resistance-and-vulnerability",
+      "title": "Resistance and Vulnerability",
+      "section": "Damage and Healing",
+      "body": "If you have Resistance to a damage type, damage of that type is halved (round down). Vulnerability doubles it. Multiple instances of Resistance or Vulnerability to the same type count as one. Apply modifiers first, then Resistance, then Vulnerability.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.resistance-and-vulnerability.2014",
+        "rule.damage-rolls",
+        "condition.petrified"
+      ]
+    },
+    {
+      "_id": "rule.resistance-and-vulnerability.2014",
+      "slug": "resistance-and-vulnerability",
+      "title": "Resistance and Vulnerability",
+      "section": "Damage and Healing",
+      "body": "Some creatures and objects are exceedingly difficult or unusually easy to hurt with certain types of damage.\n\nIf a creature or an object has resistance to a damage type, damage of that type is halved against it. If a creature or an object has vulnerability to a damage type, damage of that type is doubled against it.\n\nResistance and then vulnerability are applied after all other modifiers to damage. For example, a creature has resistance to bludgeoning damage and is hit by an attack that deals 25 bludgeoning damage. The creature is also within a magical aura that reduces all damage by 5. The 25 damage is first reduced by 5 and then halved, so the creature takes 10 damage.\n\nMultiple instances of resistance or vulnerability that affect the same damage type count as only one instance. For example, if a creature has resistance to fire damage as well as resistance to all nonmagical damage, the damage of a nonmagical fire is reduced by half against the creature, not reduced by three-quarters.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.resistance-and-vulnerability",
+        "rule.damage-rolls.2014"
+      ]
+    },
+    {
+      "_id": "rule.healing",
+      "slug": "healing",
+      "title": "Healing",
+      "section": "Damage and Healing",
+      "body": "Spells, potions and rest restore Hit Points up to the Hit Point maximum. A creature that has died can't regain Hit Points until magic such as Revivify restores it to life. Any healing restores a creature at 0 Hit Points to consciousness.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.healing.2014",
+        "rule.hit-points",
+        "rule.dropping-to-0",
+        "spell.cure-wounds",
+        "spell.healing-word",
+        "rule.short-rest"
+      ]
+    },
+    {
+      "_id": "rule.healing.2014",
+      "slug": "healing",
+      "title": "Healing",
+      "section": "Damage and Healing",
+      "body": "Unless it results in death, damage isn't permanent. Even death is reversible through powerful magic. Rest can restore a creature's hit points, and magical methods such as a cure wounds spell or a potion of healing can remove damage in an instant.\n\nWhen a creature receives healing of any kind, hit points regained are added to its current hit points. A creature's hit points can't exceed its hit point maximum, so any hit points regained in excess of this number are lost. For example, a druid grants a ranger 8 hit points of healing. If the ranger has 14 current hit points and has a hit point maximum of 20, the ranger regains 6 hit points from the druid, not 8.\n\nA creature that has died can't regain hit points until magic such as the revivify spell has restored it to life.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.healing",
+        "rule.hit-points.2014",
+        "rule.dropping-to-0.2014",
+        "rule.short-rest.2014"
+      ]
+    },
+    {
+      "_id": "rule.temporary-hit-points",
+      "slug": "temporary-hit-points",
+      "title": "Temporary Hit Points",
+      "section": "Damage and Healing",
+      "body": "Temporary Hit Points are a buffer that absorbs damage before your real Hit Points. They don't stack: if you gain more, you choose whether to keep the old or new amount. Healing can't restore them, and they last until depleted or you finish a Long Rest.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.temporary-hit-points.2014",
+        "rule.hit-points"
+      ]
+    },
+    {
+      "_id": "rule.temporary-hit-points.2014",
+      "slug": "temporary-hit-points",
+      "title": "Temporary Hit Points",
+      "section": "Damage and Healing",
+      "body": "Some spells and special abilities confer temporary hit points to a creature. Temporary hit points aren't actual hit points; they are a buffer against damage, a pool of hit points that protect you from injury.\n\nWhen you have temporary hit points and take damage, the temporary hit points are lost first, and any leftover damage carries over to your normal hit points. For example, if you have 5 temporary hit points and take 7 damage, you lose the temporary hit points and then take 2 damage.\n\nBecause temporary hit points are separate from your actual hit points, they can exceed your hit point maximum. A character can, therefore, be at full hit points and receive temporary hit points.\n\nHealing can't restore temporary hit points, and they can't be added together. If you have temporary hit points and receive more of them, you decide whether to keep the ones you have or to gain the new ones.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.temporary-hit-points",
+        "rule.hit-points.2014"
+      ]
+    },
+    {
+      "_id": "rule.dropping-to-0",
+      "slug": "dropping-to-0",
+      "title": "Dropping to 0 Hit Points",
+      "section": "Damage and Healing",
+      "body": "When damage reduces you to 0 Hit Points, you fall Unconscious and start making Death Saving Throws, unless the damage remaining equals or exceeds your Hit Point maximum, which kills you outright. Most monsters simply die at 0 Hit Points. Any healing brings an Unconscious character back.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.dropping-to-0.2014",
+        "condition.unconscious",
+        "rule.death-saving-throws",
+        "rule.knocking-out",
+        "rule.healing",
+        "spell.healing-word"
+      ]
+    },
+    {
+      "_id": "rule.dropping-to-0.2014",
+      "slug": "dropping-to-0",
+      "title": "Dropping to 0 Hit Points",
+      "section": "Damage and Healing",
+      "body": "When you drop to 0 hit points, you either die outright or fall unconscious, as explained in the following sections.\n\nMassive damage can kill you instantly. When damage reduces you to 0 hit points and there is damage remaining, you die if the remaining damage equals or exceeds your hit point maximum.\n\nFor example, a cleric with a maximum of 12 hit points currently has 6 hit points. If she takes 18 damage from an attack, she is reduced to 0 hit points, but 12 damage remains. Because the remaining damage equals her hit point maximum, the cleric dies.\n\nIf damage reduces you to 0 hit points and fails to kill you, you fall unconscious (see appendix PH-A). This unconsciousness ends if you regain any hit points.\n\nWhenever you start your turn with 0 hit points, you must make a special saving throw, called a death saving throw, to determine whether you creep closer to death or hang onto life. Unlike other saving throws, this one isn't tied to any ability score.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.dropping-to-0",
+        "rule.knocking-out.2014",
+        "rule.healing.2014"
+      ]
+    },
+    {
+      "_id": "rule.death-saving-throws",
+      "slug": "death-saving-throws",
+      "title": "Death Saving Throws",
+      "section": "Damage and Healing",
+      "body": "At the start of each turn at 0 Hit Points, roll a d20 with no modifiers: 10 or higher is a success, otherwise a failure. Three successes make you Stable; three failures mean death. A natural 20 restores 1 Hit Point; a natural 1 counts as two failures. Taking damage while at 0 HP causes a failure (two on a Critical Hit).",
+      "srdVersion": "2024",
+      "related": [
+        "rule.dropping-to-0",
+        "condition.unconscious",
+        "rule.critical-hits"
+      ]
+    },
+    {
+      "_id": "rule.knocking-out",
+      "slug": "knocking-out",
+      "title": "Knocking Out a Creature",
+      "section": "Damage and Healing",
+      "body": "When you reduce a creature to 0 Hit Points with a melee attack, you can choose to knock it out instead of killing it. It has the Unconscious condition and is Stable, and it regains 1 Hit Point after a Short Rest.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.knocking-out.2014",
+        "rule.dropping-to-0",
+        "condition.unconscious"
+      ]
+    },
+    {
+      "_id": "rule.knocking-out.2014",
+      "slug": "knocking-out",
+      "title": "Knocking Out a Creature",
+      "section": "Damage and Healing",
+      "body": "Sometimes an attacker wants to incapacitate a foe, rather than deal a killing blow. When an attacker reduces a creature to 0 hit points with a melee attack, the attacker can knock the creature out. The attacker can make this choice the instant the damage is dealt. The creature falls unconscious and is stable.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.knocking-out",
+        "rule.dropping-to-0.2014"
+      ]
+    },
+    {
+      "_id": "rule.d20-tests",
+      "slug": "d20-tests",
+      "title": "D20 Tests",
+      "section": "Core Rules",
+      "body": "Ability checks, saving throws and attack rolls are all D20 Tests: roll a d20, add modifiers, and compare to a target number (a DC or an AC). Advantage, Disadvantage, Heroic Inspiration, Bless and Exhaustion all act on D20 Tests in the 2024 rules.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.advantage",
+        "rule.saving-throws",
+        "rule.attack-rolls",
+        "rule.heroic-inspiration",
+        "condition.exhaustion",
+        "spell.bless"
+      ]
+    },
+    {
+      "_id": "rule.saving-throws",
+      "slug": "saving-throws",
+      "title": "Saving Throws",
+      "section": "Core Rules",
+      "body": "A saving throw represents an attempt to resist a spell, trap or other threat. Roll a d20 and add the relevant ability modifier, plus your Proficiency Bonus if proficient. Meet or beat the DC to succeed. Paralyzed, Stunned, Unconscious and Petrified creatures automatically fail Strength and Dexterity saves.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.saving-throws.2014",
+        "rule.d20-tests",
+        "rule.spell-saving-throws",
+        "condition.paralyzed",
+        "condition.stunned",
+        "condition.unconscious",
+        "condition.petrified",
+        "condition.restrained"
+      ]
+    },
+    {
+      "_id": "rule.saving-throws.2014",
+      "slug": "saving-throws",
+      "title": "Saving Throws",
+      "section": "Core Rules",
+      "body": "A saving throw-also called a save-represents an attempt to resist a spell, a trap, a poison, a disease, or a similar threat. You don't normally decide to make a saving throw; you are forced to make one because your character or monster is at risk of harm.\n\nTo make a saving throw, roll a d20 and add the appropriate ability modifier. For example, you use your Dexterity modifier for a Dexterity saving throw.\n\nA saving throw can be modified by a situational bonus or penalty and can be affected by advantage and disadvantage, as determined by the GM.\n\nEach class gives proficiency in at least two saving throws. The wizard, for example, is proficient in Intelligence saves. As with skill proficiencies, proficiency in a saving throw lets a character add his or her proficiency bonus to saving throws made using a particular ability score. Some monsters have saving throw proficiencies as well.\n\nThe Difficulty Class for a saving throw is determined by the effect that causes it.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.saving-throws",
+        "rule.spell-saving-throws.2014"
+      ]
+    },
+    {
+      "_id": "rule.heroic-inspiration",
+      "slug": "heroic-inspiration",
+      "title": "Heroic Inspiration",
+      "section": "Core Rules",
+      "body": "New in the 2024 rules. When you have Heroic Inspiration you can expend it to reroll any die immediately after rolling it, and you must use the new roll. You can have it only once at a time. The DM awards it for great roleplay or heroics, and some features (such as the Human's Resourceful trait) grant it.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.d20-tests",
+        "rule.advantage"
+      ]
+    },
+    {
+      "_id": "rule.spell-slots",
+      "slug": "spell-slots",
+      "title": "Spell Slots",
+      "section": "Spellcasting",
+      "body": "Casting a leveled spell expends a spell slot of the spell's level or higher; cantrips use no slot. A higher-level slot can upcast many spells for a stronger effect. You regain expended slots when you finish a Long Rest.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.spell-slots.2014",
+        "rule.cantrips",
+        "rule.long-rest",
+        "rule.magic-action"
+      ]
+    },
+    {
+      "_id": "rule.spell-slots.2014",
+      "slug": "spell-slots",
+      "title": "Spell Slots",
+      "section": "Spellcasting",
+      "body": "Regardless of how many spells a caster knows or prepares, he or she can cast only a limited number of spells before resting. Manipulating the fabric of magic and channeling its energy into even a simple spell is physically and mentally taxing, and higher-level spells are even more so. Thus, each spellcasting class's description (except that of the warlock) includes a table showing how many spell slots of each spell level a character can use at each character level. For example, the 3rd-level wizard Umara has four 1st-level spell slots and two 2nd-level slots.\n\nWhen a character casts a spell, he or she expends a slot of that spell's level or higher, effectively \"filling\" a slot with the spell. You can think of a spell slot as a groove of a certain size-small for a 1st-level slot, larger for a spell of higher level. A 1st-level spell fits into a slot of any size, but a 9th-level spell fits only in a 9th-level slot.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.spell-slots",
+        "rule.cantrips.2014",
+        "rule.long-rest.2014",
+        "rule.magic-action.2014"
+      ]
+    },
+    {
+      "_id": "rule.cantrips",
+      "slug": "cantrips",
+      "title": "Cantrips",
+      "section": "Spellcasting",
+      "body": "A cantrip is a level 0 spell you can cast at will without a spell slot. Damaging cantrips grow stronger as you gain levels.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.cantrips.2014",
+        "rule.spell-slots",
+        "spell.fire-bolt",
+        "spell.ray-of-frost",
+        "spell.sacred-flame"
+      ]
+    },
+    {
+      "_id": "rule.cantrips.2014",
+      "slug": "cantrips",
+      "title": "Cantrips",
+      "section": "Spellcasting",
+      "body": "A cantrip is a spell that can be cast at will, without using a spell slot and without being prepared in advance. Repeated practice has fixed the spell in the caster's mind and infused the caster with the magic needed to produce the effect over and over. A cantrip's spell level is 0.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.cantrips",
+        "rule.spell-slots.2014"
+      ]
+    },
+    {
+      "_id": "rule.spell-range",
+      "slug": "spell-range",
+      "title": "Spell Range",
+      "section": "Spellcasting",
+      "body": "A spell's target must be within its range. Some spells have a range of Touch, and spells with a range of Self affect you or originate from you, such as a cone or emanation. In this game ranges are converted to 5-foot tiles, and range 0 means a self-centred effect.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.spell-range.2014",
+        "rule.areas-of-effect",
+        "spell.thunderwave",
+        "spell.cure-wounds"
+      ]
+    },
+    {
+      "_id": "rule.spell-range.2014",
+      "slug": "spell-range",
+      "title": "Spell Range",
+      "section": "Spellcasting",
+      "body": "The target of a spell must be within the spell's range. For a spell like magic missile, the target is a creature. For a spell like fireball, the target is the point in space where the ball of fire erupts.\n\nMost spells have ranges expressed in feet. Some spells can target only a creature (including you) that you touch. Other spells, such as the shield spell, affect only you. These spells have a range of self.\n\nSpells that create cones or lines of effect that originate from you also have a range of self, indicating that the origin point of the spell's effect must be you (see \"Areas of Effect\" later in the this chapter).\n\nOnce a spell is cast, its effects aren't limited by its range, unless the spell's description says otherwise.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.spell-range",
+        "rule.areas-of-effect.2014"
+      ]
+    },
+    {
+      "_id": "rule.areas-of-effect",
+      "slug": "areas-of-effect",
+      "title": "Areas of Effect",
+      "section": "Spellcasting",
+      "body": "Area spells cover a Cone, Cube, Cylinder, Emanation, Line or Sphere. Each has a point of origin, and a creature is affected if part of its space is in the area and it has no Total Cover from the origin. In this game areas are approximated as a radius of tiles around the point.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.areas-of-effect.2014",
+        "rule.spell-saving-throws",
+        "rule.cover",
+        "spell.burning-hands",
+        "spell.thunderwave",
+        "spell.shatter",
+        "spell.sleep"
+      ]
+    },
+    {
+      "_id": "rule.areas-of-effect.2014",
+      "slug": "areas-of-effect",
+      "title": "Areas of Effect",
+      "section": "Spellcasting",
+      "body": "Spells such as burning hands and cone of cold cover an area, allowing them to affect multiple creatures at once.\n\nA spell's description specifies its area of effect, which typically has one of five different shapes: cone, cube, cylinder, line, or sphere. Every area of effect has a point of origin, a location from which the spell's energy erupts. The rules for each shape specify how you position its point of origin. Typically, a point of origin is a point in space, but some spells have an area whose origin is a creature or an object.\n\nA spell's effect expands in straight lines from the point of origin. If no unblocked straight line extends from the point of origin to a location within the area of effect, that location isn't included in the spell's area. To block one of these imaginary lines, an obstruction must provide total cover.\n\nA cone extends in a direction you choose from its point of origin.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.areas-of-effect",
+        "rule.spell-saving-throws.2014",
+        "rule.cover.2014"
+      ]
+    },
+    {
+      "_id": "rule.spell-attack-rolls",
+      "slug": "spell-attack-rolls",
+      "title": "Spell Attack Rolls",
+      "section": "Spellcasting",
+      "body": "Some spells require an attack roll. Your spell attack modifier equals your spellcasting ability modifier plus your Proficiency Bonus. Spell attacks follow the normal attack rules, including Critical Hits and Disadvantage when making a ranged attack near an enemy.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.spell-attack-rolls.2014",
+        "rule.attack-rolls",
+        "rule.critical-hits",
+        "rule.ranged-attacks",
+        "spell.fire-bolt",
+        "spell.guiding-bolt",
+        "spell.ray-of-frost"
+      ]
+    },
+    {
+      "_id": "rule.spell-attack-rolls.2014",
+      "slug": "spell-attack-rolls",
+      "title": "Spell Attack Rolls",
+      "section": "Spellcasting",
+      "body": "Some spells require the caster to make an attack roll to determine whether the spell effect hits the intended target. Your attack bonus with a spell attack equals your spellcasting ability modifier + your proficiency bonus.\n\nMost spells that require attack rolls involve ranged attacks. Remember that you have disadvantage on a ranged attack roll if you are within 5 feet of a hostile creature that can see you and that isn't incapacitated.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.spell-attack-rolls",
+        "rule.attack-rolls.2014",
+        "rule.critical-hits.2014",
+        "rule.ranged-attacks.2014"
+      ]
+    },
+    {
+      "_id": "rule.spell-saving-throws",
+      "slug": "spell-saving-throws",
+      "title": "Spell Saving Throws",
+      "section": "Spellcasting",
+      "body": "Many spells force a target to make a saving throw. Your spell save DC equals 8 + your spellcasting ability modifier + your Proficiency Bonus. The spell says which ability the target uses and what happens on a success or failure.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.spell-saving-throws.2014",
+        "rule.saving-throws",
+        "spell.sacred-flame",
+        "spell.hold-person",
+        "spell.sleep",
+        "spell.shatter",
+        "spell.burning-hands",
+        "spell.thunderwave"
+      ]
+    },
+    {
+      "_id": "rule.spell-saving-throws.2014",
+      "slug": "spell-saving-throws",
+      "title": "Spell Saving Throws",
+      "section": "Spellcasting",
+      "body": "Many spells specify that a target can make a saving throw to avoid some or all of a spell's effects. The spell specifies the ability that the target uses for the save and what happens on a success or failure.\n\nThe DC to resist one of your spells equals 8 + your spellcasting ability modifier + your proficiency bonus + any special modifiers.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.spell-saving-throws",
+        "rule.saving-throws.2014"
+      ]
+    },
+    {
+      "_id": "rule.concentration",
+      "slug": "concentration",
+      "title": "Concentration",
+      "section": "Spellcasting",
+      "body": "Some spells require Concentration to keep their magic active. You lose it if you cast another Concentration spell, have the Incapacitated condition, or die. When you take damage, make a Constitution saving throw (DC 10 or half the damage, whichever is higher, up to DC 30) or lose Concentration.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.concentration.2014",
+        "condition.incapacitated",
+        "rule.saving-throws",
+        "spell.bless",
+        "spell.hold-person",
+        "spell.sleep",
+        "spell.shield-of-faith",
+        "condition.blessed",
+        "condition.shield-of-faith"
+      ]
+    },
+    {
+      "_id": "rule.concentration.2014",
+      "slug": "concentration",
+      "title": "Concentration",
+      "section": "Spellcasting",
+      "body": "Some spells require you to maintain concentration in order to keep their magic active. If you lose concentration, such a spell ends.\n\nIf a spell must be maintained with concentration, that fact appears in its Duration entry, and the spell specifies how long you can concentrate on it. You can end concentration at any time (no action required).\n\nNormal activity, such as moving and attacking, doesn't interfere with concentration. The following factors can break concentration:\n- Casting another spell that requires concentration. You lose concentration on a spell if you cast another spell that requires concentration. You can't concentrate on two spells at once.\n- Taking damage. Whenever you take damage while you are concentrating on a spell, you must make a Constitution saving throw to maintain your concentration. The DC equals 10 or half the damage you take, whichever number is higher.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.concentration",
+        "rule.saving-throws.2014"
+      ]
+    },
+    {
+      "_id": "rule.short-rest",
+      "slug": "short-rest",
+      "title": "Short Rest",
+      "section": "Adventuring",
+      "body": "A Short Rest is 1 hour of downtime. You can spend Hit Point Dice to recover Hit Points: roll each die and add your Constitution modifier. In this game, a short breather between rooms lets heroes drink potions and regroup.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.short-rest.2014",
+        "rule.long-rest",
+        "rule.healing"
+      ]
+    },
+    {
+      "_id": "rule.short-rest.2014",
+      "slug": "short-rest",
+      "title": "Short Rest",
+      "section": "Adventuring",
+      "body": "A short rest is a period of downtime, at least 1 hour long, during which a character does nothing more strenuous than eating, drinking, reading, and tending to wounds.\n\nA character can spend one or more Hit Dice at the end of a short rest, up to the character's maximum number of Hit Dice, which is equal to the character's level. For each Hit Die spent in this way, the player rolls the die and adds the character's Constitution modifier to it. The character regains hit points equal to the total. The player can decide to spend an additional Hit Die after each roll. A character regains some spent Hit Dice upon finishing a long rest, as explained below.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.short-rest",
+        "rule.long-rest.2014",
+        "rule.healing.2014"
+      ]
+    },
+    {
+      "_id": "rule.long-rest",
+      "slug": "long-rest",
+      "title": "Long Rest",
+      "section": "Adventuring",
+      "body": "A Long Rest is at least 8 hours of sleep and light activity. You regain all lost Hit Points and spent Hit Point Dice, your spell slots return, and your Exhaustion level drops by 1. You can benefit from only one Long Rest per 24 hours.",
+      "srdVersion": "2024",
+      "related": [
+        "rule.long-rest.2014",
+        "rule.short-rest",
+        "rule.spell-slots",
+        "condition.exhaustion"
+      ]
+    },
+    {
+      "_id": "rule.long-rest.2014",
+      "slug": "long-rest",
+      "title": "Long Rest",
+      "section": "Adventuring",
+      "body": "A long rest is a period of extended downtime, at least 8 hours long, during which a character sleeps or performs light activity: reading, talking, eating, or standing watch for no more than 2 hours. If the rest is interrupted by a period of strenuous activity-at least 1 hour of walking, fighting, casting spells, or similar adventuring activity-the characters must begin the rest again to gain any benefit from it.\n\nAt the end of a long rest, a character regains all lost hit points. The character also regains spent Hit Dice, up to a number of dice equal to half of the character's total number of them (minimum of one die). For example, if a character has eight Hit Dice, he or she can regain four spent Hit Dice upon finishing a long rest.\n\nA character can't benefit from more than one long rest in a 24-hour period, and a character must have at least 1 hit point at the start of the rest to gain its benefits.",
+      "srdVersion": "2014",
+      "related": [
+        "rule.long-rest",
+        "rule.short-rest.2014",
+        "rule.spell-slots.2014"
+      ]
+    }
+  ],
+  "heroes": [
+    {
+      "_id": "hero.brakka",
+      "slug": "brakka",
+      "name": "Brakka Ironhide",
+      "className": "Fighter",
+      "level": 3,
+      "ac": 18,
+      "hp": 28,
+      "speed": 6,
+      "abilities": {
+        "str": 16,
+        "dex": 12,
+        "con": 14,
+        "int": 8,
+        "wis": 12,
+        "cha": 10
+      },
+      "proficiency": 2,
+      "attacks": [
+        {
+          "name": "Longsword",
+          "toHit": 5,
+          "damage": "1d8+3",
+          "damageType": "slashing",
+          "range": 1
+        },
+        {
+          "name": "Javelin",
+          "toHit": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "range": 6
+        }
+      ],
+      "spells": [],
+      "slots": {},
+      "spriteKey": "knight_m",
+      "potions": 2,
+      "blurb": "Brakka has never met a door, skull or goblin she could not solve with a longsword."
+    },
+    {
+      "_id": "hero.elowen",
+      "slug": "elowen",
+      "name": "Elowen Vaire",
+      "className": "Wizard",
+      "level": 3,
+      "ac": 12,
+      "hp": 17,
+      "speed": 6,
+      "abilities": {
+        "str": 8,
+        "dex": 14,
+        "con": 12,
+        "int": 16,
+        "wis": 12,
+        "cha": 10
+      },
+      "proficiency": 2,
+      "attacks": [
+        {
+          "name": "Quarterstaff",
+          "toHit": 1,
+          "damage": "1d6-1",
+          "damageType": "bludgeoning",
+          "range": 1
+        }
+      ],
+      "spells": [
+        "fire-bolt",
+        "ray-of-frost",
+        "magic-missile",
+        "burning-hands",
+        "thunderwave",
+        "hold-person",
+        "sleep",
+        "shatter"
+      ],
+      "slots": {
+        "1": 4,
+        "2": 2
+      },
+      "spellAttack": 5,
+      "spellDc": 13,
+      "spriteKey": "wizzard_f",
+      "potions": 1,
+      "blurb": "Elowen footnotes her fireballs and still singes her eyebrows every time."
+    },
+    {
+      "_id": "hero.tobin",
+      "slug": "tobin",
+      "name": "Tobin Ashmantle",
+      "className": "Cleric",
+      "level": 3,
+      "ac": 18,
+      "hp": 24,
+      "speed": 5,
+      "abilities": {
+        "str": 14,
+        "dex": 10,
+        "con": 14,
+        "int": 10,
+        "wis": 16,
+        "cha": 12
+      },
+      "proficiency": 2,
+      "attacks": [
+        {
+          "name": "Mace",
+          "toHit": 4,
+          "damage": "1d6+2",
+          "damageType": "bludgeoning",
+          "range": 1
+        }
+      ],
+      "spells": [
+        "sacred-flame",
+        "guiding-bolt",
+        "cure-wounds",
+        "healing-word",
+        "bless",
+        "shield-of-faith",
+        "hold-person"
+      ],
+      "slots": {
+        "1": 4,
+        "2": 2
+      },
+      "spellAttack": 5,
+      "spellDc": 13,
+      "spriteKey": "dwarf_m",
+      "potions": 1,
+      "blurb": "Tobin prays loudly, heals grudgingly, and keeps a tally of every friend he has dragged back from 0 HP."
+    }
+  ],
+  "rooms": [
+    {
+      "_id": "room.collapsed-gate",
+      "slug": "collapsed-gate",
+      "name": "The Collapsed Gate",
+      "order": 1,
+      "music": "combat",
+      "description": "Shattered portcullis bars jut from a slope of rubble where the old keep's gate gave way. Two goblins crouch behind the fallen stones, giggling as their mangy wolf strains at a fraying rope. Torchlight flickers on fresh scratch marks: someone came through here recently.",
+      "encounter": [
+        {
+          "monster": "goblin",
+          "count": 2
+        },
+        {
+          "monster": "wolf",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "_id": "room.fungus-hall",
+      "slug": "fungus-hall",
+      "name": "The Fungus Hall",
+      "order": 2,
+      "music": "combat",
+      "description": "Pale mushrooms as tall as men glow a sickly green, filling the air with drifting spores. Giant rats squeal between the stalks while a goblin forager hacks at caps with a rusty blade. In the corner, what looks like a puddle of wet stone begins to move.",
+      "encounter": [
+        {
+          "monster": "giant-rat",
+          "count": 2
+        },
+        {
+          "monster": "gray-ooze",
+          "count": 1
+        },
+        {
+          "monster": "goblin",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "_id": "room.bone-crypt",
+      "slug": "bone-crypt",
+      "name": "The Bone Crypt",
+      "order": 3,
+      "music": "combat",
+      "description": "Niches of yellowed skulls line the walls, and the floor crunches underfoot. Three skeletons pull themselves from their alcoves, a bloated zombie lurching behind them. Something hungrier waits in the dark, licking its claws.",
+      "encounter": [
+        {
+          "monster": "skeleton",
+          "count": 3
+        },
+        {
+          "monster": "zombie",
+          "count": 1
+        },
+        {
+          "monster": "ghoul",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "_id": "room.imp-shrine",
+      "slug": "imp-shrine",
+      "name": "Shrine of the Imp",
+      "order": 4,
+      "music": "combat",
+      "description": "Black candles ring a cracked altar smeared with soot and wax. Two robed cultists chant over a cage where a grinning imp drums its fingers, while a hobgoblin sergeant watches the door with crossed arms. The chanting stops the moment the heroes enter.",
+      "encounter": [
+        {
+          "monster": "imp",
+          "count": 1
+        },
+        {
+          "monster": "cultist",
+          "count": 2
+        },
+        {
+          "monster": "hobgoblin",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "_id": "room.bugbear-throne",
+      "slug": "bugbear-throne",
+      "name": "Throne of the Bugbear Chief",
+      "order": 5,
+      "music": "boss",
+      "isBoss": true,
+      "description": "A throne of stacked shields and stolen banners dominates the hall, and on it lounges the Bugbear Chief, picking his teeth with a dagger. His goblin guards snap to attention and a hobgoblin champion draws steel. \"More snacks,\" the chief rumbles, reaching out with impossibly long arms.",
+      "encounter": [
+        {
+          "monster": "bugbear",
+          "count": 1
+        },
+        {
+          "monster": "goblin",
+          "count": 2
+        },
+        {
+          "monster": "hobgoblin",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "source": "fallback"
+}
