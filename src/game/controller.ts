@@ -2,14 +2,14 @@
 // React reads `view` via subscribe(); the scene is purely presentational.
 import {
   attack, castSpell, createCombat, currentCombatant, distance, dodge, endTurn, getCombatant, hasLineOfSight,
-  livingCombatants, movableTiles, move, mulberry32, runMonsterTurn, syncHeroFromCombatant, tilesInRadius, usePotion,
+  livingCombatants, movableTiles, move, mulberry32, planMonsterTurn, syncHeroFromCombatant, tilesInRadius, usePotion,
   findPath, posKey, effectiveSpeed, isIncapacitated,
   type ActionResult, type Combatant, type GameEvent, type GameState, type HeroProgress, type Pos, type Rng,
 } from './engine';
 import type { Citation, GameContent, Room, Spell, SrdVersion } from './content/types';
 import { getArena, type ArenaMap } from './maps';
 import type { DungeonScene, UnitView } from './scenes/DungeonScene';
-import { audio } from './audio';
+import { audio, type Track } from './audio';
 import type { DiceShow } from '@/components/DiceOverlay';
 import type { DmLookup, DmResponse } from '@/app/api/dm/route';
 
@@ -18,7 +18,8 @@ export type Mode = { kind: 'move' } | { kind: 'attack'; index: number } | { kind
 
 export interface ChatMessage {
   id: number;
-  role: 'dm' | 'player' | 'system';
+  /** 'log' = dim engine log line, shown immediately (no AI needed) */
+  role: 'dm' | 'player' | 'system' | 'log';
   text: string;
   lookups?: DmLookup[];
   backend?: DmResponse['backend'];
@@ -29,6 +30,8 @@ export interface Ruling {
   key: number;
   citation: Citation;
   context: string;
+  round?: number;
+  room?: string;
 }
 
 export interface HoverInfo {
@@ -36,6 +39,54 @@ export interface HoverInfo {
   unit?: { name: string; hp: number; maxHp: number; ac: number; conditions: string[]; side: 'hero' | 'monster'; refSlug: string };
   hint?: string;
 }
+
+/** What the UI should currently display for a unit. Lags the engine during playback so HP changes land with their event. */
+export interface UnitDisplay {
+  hp: number;
+  maxHp: number;
+  dead: boolean;
+  pos: Pos;
+  conditions: string[];
+}
+
+export interface TurnBanner {
+  text: string;
+  side: 'hero' | 'monster' | 'round';
+  key: number;
+}
+
+/** The last engine event played back, with a unique key for effects. */
+export type LastEvent = GameEvent & { key: number };
+
+/** Keyboard map (key -> label). '1'..'9' pick entries of `ctrl.hotkeyOptions()` (attacks first, then spells). */
+export const HOTKEYS: Record<string, string> = {
+  m: 'Move',
+  '1-9': 'Attack / spell',
+  d: 'Dodge',
+  p: 'Potion',
+  e: 'End turn',
+  Enter: 'End turn',
+  Escape: 'Cancel',
+  'Arrows / W A S': 'Step one tile',
+};
+
+export type HotkeyOption = { key: string; label: string; mode: Mode; disabled: boolean };
+
+const TRACKS: Track[] = ['title', 'explore', 'combat', 'boss', 'victory'];
+const DM_MIN_GAP = 6000;
+/** Pacing (ms). Monster turns aim for ~1.5–2.5s. */
+const PACE = {
+  monsterBeat: 380,
+  roundBanner: 650,
+  lostTurn: 900,
+  d20Hero: 1150,
+  d20Monster: 760,
+  dmgHero: 750,
+  dmgMonster: 480,
+  hit: 230,
+  death: 320,
+  autoEnd: 350,
+};
 
 export interface View {
   phase: Phase;
@@ -57,6 +108,10 @@ export interface View {
   srdVersion: SrdVersion;
   dmThinking: boolean;
   stats: { rolls: number; crits: number; kills: number; rulesCited: number; lookups: number };
+  /** displayed unit values keyed by combatant id; prefer these over state.combatants for hp/dead/pos */
+  units: Record<string, UnitDisplay>;
+  turnBanner: TurnBanner | null;
+  lastEvent: LastEvent | null;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -74,6 +129,14 @@ export class GameController {
   private pendingBeat: string[] = [];
   private pendingCited = new Set<string>();
   private dmInFlight = false;
+  private dmWanted = false;
+  private lastDmAt = 0;
+  private dmTimer: ReturnType<typeof setTimeout> | null = null;
+  private transitioning = false;
+  private recoverAttempts = 0;
+  private monsterPace = false;
+  private lastTurnKey = '';
+  private lastRound = 0;
   private seq = 1;
   private litCounter = 1;
   private titles: Record<string, string>;
@@ -86,6 +149,7 @@ export class GameController {
       isPlayerTurn: false, busy: false, mode: { kind: 'move' }, chat: [], rulings: [], lit: new Map(), focus: null,
       dice: null, hover: null, toast: null, srdVersion: '2024', dmThinking: false,
       stats: { rolls: 0, crits: 0, kills: 0, rulesCited: 0, lookups: 0 },
+      units: {}, turnBanner: null, lastEvent: null,
     };
   }
 
@@ -109,6 +173,11 @@ export class GameController {
     return this.titles;
   }
 
+  /** Optional scene hooks other agents may add. */
+  private get sceneX() {
+    return this.scene as (DungeonScene & { focusUnit?: (id: string | null) => void; highlightUnit?: (id: string | null) => void }) | null;
+  }
+
   attachScene(scene: DungeonScene) {
     this.scene = scene;
     scene.setHandlers((p) => void this.onTileClick(p), (p) => this.onTileHover(p));
@@ -117,23 +186,47 @@ export class GameController {
   // ---------------- flow ----------------
 
   async start() {
-    audio.unlock();
-    audio.blip('door');
-    this.progress = {};
-    this.openedChests.clear();
-    this.update({
-      phase: 'playing', roomIndex: 0, chat: [], rulings: [], lit: new Map(),
-      stats: { rolls: 0, crits: 0, kills: 0, rulesCited: 0, lookups: 0 },
-    });
-    this.say('system', 'Your party descends into the Goblin Warren…');
+    if (this.transitioning) return;
+    this.transitioning = true;
+    try {
+      audio.unlock();
+      audio.blip('door');
+      this.progress = {};
+      this.openedChests.clear();
+      this.update({
+        phase: 'playing', roomIndex: 0, chat: [], rulings: [], lit: new Map(),
+        stats: { rolls: 0, crits: 0, kills: 0, rulesCited: 0, lookups: 0 },
+      });
+      this.say('system', 'Your party descends into the Goblin Warren…');
+    } finally {
+      this.transitioning = false;
+    }
     await this.enterRoom(0);
   }
 
   async enterRoom(index: number) {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    let entered = false;
+    try {
+      entered = this.setupRoom(index);
+    } catch (err) {
+      console.error('[game] entering room failed', err);
+    } finally {
+      this.transitioning = false;
+    }
+    if (!entered) return this.update({ busy: false });
+    await sleep(600);
+    await this.safe('runTurns', () => this.runTurns());
+  }
+
+  private setupRoom(index: number): boolean {
     const room = this.rooms[index];
-    if (!room || !this.scene) return;
+    if (!room || !this.scene) return false;
     const arena = getArena(room.order);
     this.arena = arena;
+    // chests are keyed by tile, so they must not carry over between rooms
+    this.openedChests.clear();
     const bySlug = new Map(this.content.monsters.map((m) => [m.slug, m]));
     const occupied = new Set<string>();
     const monsters: { monster: GameContent['monsters'][number]; pos: Pos }[] = [];
@@ -156,37 +249,121 @@ export class GameController {
     const state = createCombat(
       this.content.heroes, monsters, arena.heroSpawns, grid,
       { spells: this.content.spells, conditions: this.content.conditions }, this.rng,
-      Object.keys(this.progress).length ? this.progress : undefined,
+      Object.keys(this.progress).length ? structuredClone(this.progress) : undefined,
     );
 
-    this.scene.loadArena(arena);
-    this.update({ room, roomIndex: index, state, phase: 'playing', mode: { kind: 'move' }, focus: null });
+    (this.scene.loadArena as (a: ArenaMap, title?: { index: number; name: string }) => void).call(this.scene, arena, { index, name: room.name });
+    this.lastTurnKey = '';
+    this.lastRound = 0;
+    this.recoverAttempts = 0;
+    this.update({
+      room, roomIndex: index, state, phase: 'playing', mode: { kind: 'move' }, focus: null,
+      busy: true, isPlayerTurn: false, activeId: null, turnBanner: null, lastEvent: null, units: unitsFrom(state),
+    });
     this.syncUnits();
-    audio.play(room.isBoss ? 'boss' : index === 0 ? 'combat' : index % 2 ? 'explore' : 'combat');
+    const fallback: Track = room.isBoss ? 'boss' : index % 2 ? 'explore' : 'combat';
+    audio.play(TRACKS.includes(room.music as Track) ? (room.music as Track) : fallback);
 
     this.say('system', `Room ${index + 1} of ${this.rooms.length}: ${room.name}`);
     this.addCitations(state.citations, 'Initiative is rolled');
     const order = state.order.map((id) => getCombatant(state, id)!).map((c) => `${c.name} ${c.initiative}`).join(', ');
-    this.queueBeat([`The party enters ${room.name}.`, `Initiative order: ${order}.`], [], true);
-    await sleep(600);
-    await this.runTurns();
+    this.queueBeat([`The party enters ${room.name}.`, `Initiative order: ${order}.`], []);
+    this.flushBeat(true);
+    return true;
   }
 
   async nextRoom() {
-    audio.blip('door');
-    await this.scene?.fadeOut();
+    if (this.transitioning || this.view.phase !== 'room-cleared') return;
+    this.transitioning = true;
+    try {
+      audio.blip('door');
+      await this.scene?.fadeOut();
+    } catch (err) {
+      console.error('[game] fade failed', err);
+    } finally {
+      this.transitioning = false;
+    }
     await this.enterRoom(this.view.roomIndex + 1);
   }
 
   async retryRoom() {
-    this.progress = structuredClone(this.roomStartProgress);
-    await this.scene?.fadeOut();
+    if (this.transitioning || this.view.phase !== 'defeat') return;
+    this.transitioning = true;
+    try {
+      this.progress = structuredClone(this.roomStartProgress);
+      await this.scene?.fadeOut();
+    } catch (err) {
+      console.error('[game] fade failed', err);
+    } finally {
+      this.transitioning = false;
+    }
     await this.enterRoom(this.view.roomIndex);
   }
 
   restart() {
-    this.update({ phase: 'title' });
+    this.update({ phase: 'title', turnBanner: null });
     audio.play('title');
+  }
+
+  /** Runs fn; on a thrown error logs it and gets the game moving again instead of soft-locking. */
+  private async safe(label: string, fn: () => Promise<unknown>) {
+    try {
+      await fn();
+      this.recoverAttempts = 0;
+    } catch (err) {
+      console.error(`[game] ${label} failed`, err);
+      this.monsterPace = false;
+      await this.recover();
+    }
+  }
+
+  private async recover() {
+    const s = this.view.state;
+    try {
+      this.scene?.clearOverlay();
+      if (s) this.update({ units: unitsFrom(s) });
+      this.syncUnits();
+    } catch {
+      /* scene may be gone */
+    }
+    if (!s || this.view.phase !== 'playing') return this.update({ busy: false });
+    if (++this.recoverAttempts > 6) {
+      // give up gracefully: hand control to whoever's turn it is
+      this.update({ busy: false, isPlayerTurn: s.status === 'active' && currentCombatant(s).side === 'hero' });
+      return this.toast('The dungeon shudders. Something went wrong; try ending the turn.');
+    }
+    if (s.status !== 'active') return this.safe('onCombatEnd', () => this.onCombatEnd());
+    const cur = currentCombatant(s);
+    if (cur.side === 'hero' && !cur.dead && !isIncapacitated(cur)) {
+      this.update({ activeId: cur.id, isPlayerTurn: true, busy: false, mode: { kind: 'move' } });
+      this.scene?.setActive(cur.id);
+      this.refreshOverlay();
+      return;
+    }
+    try {
+      endTurn(s, this.rng);
+    } catch (err) {
+      console.error('[game] could not skip turn', err);
+    }
+    await this.safe('runTurns', () => this.runTurns());
+  }
+
+  /** Shows "Round N" when the round changes, then "<name>'s turn". */
+  private async announceTurn(cur: Combatant) {
+    const s = this.view.state!;
+    const key = `${s.round}:${s.turnIndex}`;
+    if (key === this.lastTurnKey) return;
+    this.lastTurnKey = key;
+    if (s.round !== this.lastRound) {
+      this.lastRound = s.round;
+      this.update({ turnBanner: { text: `Round ${s.round}`, side: 'round', key: this.seq++ } });
+      await sleep(PACE.roundBanner);
+    }
+    const name = cur.side === 'hero' ? cur.name.split(' ')[0] : cur.name;
+    this.scene?.setActive(cur.id);
+    // enemy turns: camera follows the monster; hero turns return to the full-room view
+    this.sceneX?.focusUnit?.(cur.side === 'monster' ? cur.id : null);
+    this.update({ turnBanner: { text: `${name}'s turn`, side: cur.side, key: this.seq++ }, activeId: cur.id });
   }
 
   /** Runs monster turns until it's a hero's turn or combat ends. */
@@ -195,32 +372,56 @@ export class GameController {
     if (!state) return;
     while (state.status === 'active') {
       const cur = currentCombatant(state);
-      this.scene?.setActive(cur.id);
       if (cur.side === 'hero') {
-        if (isIncapacitated(cur)) {
-          this.toast(`${cur.name} is ${cur.conditions.map((c) => c.slug).join(', ')} and loses the turn.`);
-          await sleep(900);
-          const r = endTurn(state);
-          await this.play(r);
+        if (isIncapacitated(cur) || cur.dead) {
+          this.update({ activeId: cur.id, isPlayerTurn: false, busy: true });
+          await this.announceTurn(cur);
+          this.toast(`${cur.name} is ${cur.conditions.map((c) => this.titleOf(`condition.${c.slug}`)).join(', ') || 'down'} and loses the turn.`);
+          await sleep(PACE.lostTurn);
+          await this.play(endTurn(state, this.rng));
           continue;
         }
+        await this.announceTurn(cur);
+        // one DM call per hero turn: narrates the previous hero turn + monster segment
+        this.flushBeat();
         this.update({ activeId: cur.id, isPlayerTurn: true, busy: false, mode: { kind: 'move' } });
         this.refreshOverlay();
         return;
       }
       this.update({ activeId: cur.id, isPlayerTurn: false, busy: true });
       this.scene?.clearOverlay();
-      await sleep(350);
-      const results = runMonsterTurn(state, cur.id, this.rng);
-      for (const r of results) await this.play(r);
+      await this.announceTurn(cur);
+      await sleep(PACE.monsterBeat);
+      await this.runMonster(cur.id);
     }
     await this.onCombatEnd();
+  }
+
+  /** Plans and plays a monster's turn one step at a time so each outcome lands with its animation. */
+  private async runMonster(id: string) {
+    const state = this.view.state!;
+    const turnKey = `${state.round}:${state.turnIndex}`;
+    this.monsterPace = true;
+    try {
+      for (const step of planMonsterTurn(state, id, this.rng)) {
+        if (state.status !== 'active') break;
+        const r = step.kind === 'move' ? move(state, id, step.to, this.rng)
+          : step.kind === 'attack' ? attack(state, id, step.targetId, step.attackIndex, this.rng)
+            : endTurn(state, this.rng);
+        await this.play(r);
+      }
+      // a failed step must never leave the monster holding the turn
+      if (state.status === 'active' && `${state.round}:${state.turnIndex}` === turnKey) await this.play(endTurn(state, this.rng));
+    } finally {
+      this.monsterPace = false;
+    }
   }
 
   private async onCombatEnd() {
     const state = this.view.state!;
     state.combatants.filter((c) => c.side === 'hero').forEach((c) => (this.progress[c.refSlug] = syncHeroFromCombatant(c)));
     this.scene?.clearOverlay();
+    this.update({ turnBanner: null });
     if (state.status === 'victory') {
       const last = this.view.roomIndex >= this.rooms.length - 1;
       // short rest: each hero recovers a third of their HP
@@ -277,6 +478,7 @@ export class GameController {
       audio.blip('chest');
       this.toast(`${c.name} finds a Potion of Healing!`);
       this.queueBeat([`${c.name} pries open a chest and finds a Potion of Healing.`]);
+      this.log(`${c.name} finds a Potion of Healing.`);
       this.update();
       return;
     }
@@ -294,15 +496,26 @@ export class GameController {
     if (mode.kind === 'attack') {
       if (!unit || unit.side === c.side) return this.toast('Pick an enemy to attack.');
       const atk = c.attacks[mode.index];
+      if (!this.targetIds(c, mode).includes(unit.id)) return this.toast(`${unit.name} is out of reach for ${atk.name}.`);
       return this.doAction(() => attack(s, c.id, unit.id, mode.index, this.rng), { attacker: c.id, target: unit.id, style: atk.range > 1 ? 'ranged' : 'melee' });
     }
     if (mode.kind === 'spell') {
       const spell = s.spells[mode.slug];
       if (!spell) return;
-      const target = (spell.radius ?? 0) > 0 ? p : unit?.id;
-      if (!target) return this.toast(`Pick a creature for ${spell.name}.`);
-      return this.doAction(() => castSpell(s, c.id, spell.slug, target, this.rng), {
-        attacker: c.id, target: typeof target === 'string' ? target : undefined, at: p, spell,
+      const radius = spell.radius ?? 0;
+      if (radius > 0) {
+        // range-0 areas (thunderwave) burst from the caster wherever you click
+        const at = spell.range === 0 ? { ...c.pos } : p;
+        return this.doAction(() => castSpell(s, c.id, spell.slug, at, this.rng), { attacker: c.id, at, spell });
+      }
+      const valid = this.targetIds(c, mode);
+      if (!unit) return this.toast(`Pick a creature for ${spell.name}.`);
+      if (!valid.includes(unit.id)) {
+        const ally = spell.kind === 'heal' || spell.kind === 'buff';
+        return this.toast(ally && unit.side !== c.side ? `${spell.name} targets an ally.` : !ally && unit.side === c.side ? `${spell.name} targets an enemy.` : `${unit.name} is out of range for ${spell.name}.`);
+      }
+      return this.doAction(() => castSpell(s, c.id, spell.slug, unit.id, this.rng), {
+        attacker: c.id, target: unit.id, at: p, spell,
       });
     }
   }
@@ -315,17 +528,26 @@ export class GameController {
     }
     const u = s.combatants.find((x) => !x.dead && x.pos.x === p.x && x.pos.y === p.y);
     const hover: HoverInfo = { pos: p };
-    if (u) hover.unit = { name: u.name, hp: u.hp, maxHp: u.maxHp, ac: u.ac, conditions: u.conditions.map((x) => x.slug), side: u.side, refSlug: u.refSlug };
-    if (this.view.mode.kind === 'spell' && this.view.isPlayerTurn) {
+    if (u) {
+      const d = this.view.units[u.id];
+      hover.unit = { name: u.name, hp: d?.hp ?? u.hp, maxHp: u.maxHp, ac: u.ac, conditions: d?.conditions ?? u.conditions.map((x) => x.slug), side: u.side, refSlug: u.refSlug };
+    }
+    const canDraw = this.view.isPlayerTurn && !this.view.busy;
+    if (canDraw && this.view.mode.kind === 'spell') {
       const spell = s.spells[this.view.mode.slug];
-      if (spell && (spell.radius ?? 0) > 0) this.scene?.showOverlay({ ...this.overlayFor(), aoe: tilesInRadius(s.grid, p, spell.radius!) });
-    } else if (this.view.mode.kind === 'move' && this.view.isPlayerTurn && !u) {
+      if (spell && (spell.radius ?? 0) > 0) {
+        const at = spell.range === 0 ? currentCombatant(s).pos : p;
+        this.scene?.showOverlay({ ...this.overlayFor(), aoe: tilesInRadius(s.grid, at, spell.radius!) });
+      }
+    } else if (canDraw && this.view.mode.kind === 'move' && !u) {
       const c = currentCombatant(s);
       const reach = movableTiles(s, c.id);
       if (reach.some((r) => r.x === p.x && r.y === p.y)) {
         const occ = new Set(s.combatants.filter((x) => !x.dead && x.id !== c.id).map((x) => posKey(x.pos)));
         const path = findPath(s.grid, c.pos, p, occ) ?? [];
         this.scene?.showOverlay({ ...this.overlayFor(), path });
+      } else {
+        this.scene?.showOverlay(this.overlayFor());
       }
     }
     if (hover.unit?.name !== this.view.hover?.unit?.name || hover.unit?.hp !== this.view.hover?.unit?.hp) this.update({ hover });
@@ -342,14 +564,70 @@ export class GameController {
   }
 
   async endTurn() {
-    const c = this.actor();
+    if (!this.actor()) return;
+    await this.finishTurn();
+  }
+
+  /** Ends the current hero's turn without the actor() check (used while busy by the auto-end). */
+  private async finishTurn() {
     const s = this.view.state;
-    if (!c || !s) return;
+    if (!s || s.status !== 'active' || currentCombatant(s).side !== 'hero') return;
     audio.blip('ui');
     this.update({ busy: true, isPlayerTurn: false });
     this.scene?.clearOverlay();
-    await this.play(endTurn(s, this.rng));
-    await this.runTurns();
+    await this.safe('endTurn', async () => {
+      await this.play(endTurn(s, this.rng));
+      await this.runTurns();
+    });
+  }
+
+  /** Attack/spell options in the stable order used by hotkeys '1'..'9'. */
+  hotkeyOptions(): HotkeyOption[] {
+    const s = this.view.state;
+    if (!s || s.status !== 'active') return [];
+    const c = currentCombatant(s);
+    if (c.side !== 'hero') return [];
+    const opts: HotkeyOption[] = c.attacks.map((a, i) => ({ key: '', label: a.name, mode: { kind: 'attack', index: i } as Mode, disabled: !!c.actedThisTurn }));
+    for (const slug of c.spells ?? []) {
+      const sp = s.spells[slug];
+      if (!sp) continue;
+      opts.push({ key: '', label: sp.name, mode: { kind: 'spell', slug }, disabled: !!c.actedThisTurn || (sp.level > 0 && (c.slots?.[sp.level] ?? 0) <= 0) });
+    }
+    return opts.slice(0, 9).map((o, i) => ({ ...o, key: String(i + 1) }));
+  }
+
+  /** Keyboard input; returns true if the key was handled. See HOTKEYS. */
+  hotkey(key: string): boolean {
+    const c = this.actor();
+    const s = this.view.state;
+    if (!c || !s) return false;
+    const k = key.length === 1 ? key.toLowerCase() : key;
+    const steps: Record<string, Pos> = {
+      ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+      w: { x: 0, y: -1 }, s: { x: 0, y: 1 }, a: { x: -1, y: 0 },
+    };
+    if (steps[k]) {
+      const to = { x: c.pos.x + steps[k].x, y: c.pos.y + steps[k].y };
+      void this.doAction(() => move(s, c.id, to, this.rng));
+      return true;
+    }
+    if (/^[1-9]$/.test(k)) {
+      const o = this.hotkeyOptions()[Number(k) - 1];
+      if (!o) return false;
+      if (o.disabled) {
+        this.toast(c.actedThisTurn ? `${c.name} already used the action this turn.` : `No spell slots left for ${o.label}.`);
+        return true;
+      }
+      this.setMode(o.mode);
+      return true;
+    }
+    switch (k) {
+      case 'm': case 'Escape': this.setMode({ kind: 'move' }); return true;
+      case 'd': void this.dodge(); return true;
+      case 'p': void this.potion(); return true;
+      case 'e': case 'Enter': void this.endTurn(); return true;
+    }
+    return false;
   }
 
   private async doAction(
@@ -357,28 +635,41 @@ export class GameController {
     fx?: { attacker?: string; target?: string; at?: Pos; style?: 'melee' | 'ranged'; spell?: Spell },
   ) {
     const s = this.view.state;
-    if (!s) return;
-    const r = fn();
+    if (!s || this.view.busy) return;
+    let r: ActionResult;
+    try {
+      r = fn();
+    } catch (err) {
+      console.error('[game] action failed', err);
+      return this.toast('That did not work.');
+    }
     if (!r.ok) {
       if (r.citations.length) this.addCitations(r.citations, r.error ?? '');
       return this.toast(r.error ?? 'Not allowed');
     }
     this.update({ busy: true });
     this.scene?.clearOverlay();
-    await this.play(r, fx);
-    if (s.status !== 'active') {
-      this.update({ busy: false });
-      return this.onCombatEnd();
+    let autoEnd = false;
+    await this.safe('action', async () => {
+      await this.play(r, fx);
+      if (s.status !== 'active') {
+        this.update({ busy: false });
+        return this.onCombatEnd();
+      }
+      const c = currentCombatant(s);
+      // auto-end the turn once nothing useful is left; stay busy so no input sneaks in
+      const canMove = effectiveSpeed(c) - (c.movedThisTurn ?? 0) > 0;
+      if (c.side === 'hero' && c.actedThisTurn && !canMove) {
+        autoEnd = true;
+        return;
+      }
+      this.update({ busy: false, mode: { kind: 'move' } });
+      this.refreshOverlay();
+    });
+    if (autoEnd) {
+      await sleep(PACE.autoEnd);
+      await this.finishTurn();
     }
-    const c = currentCombatant(s);
-    // auto-end the turn once nothing useful is left
-    const canMove = effectiveSpeed(c) - (c.movedThisTurn ?? 0) > 0;
-    this.update({ busy: false, mode: { kind: 'move' } });
-    if (c.actedThisTurn && !canMove) {
-      await sleep(350);
-      return this.endTurn();
-    }
-    this.refreshOverlay();
   }
 
   // ---------------- event playback ----------------
@@ -388,8 +679,18 @@ export class GameController {
     const ev = r.events;
     const lines: string[] = [];
     let lastCrit = false;
+    const mon = this.monsterPace;
+    const units = { ...this.view.units };
+    const show = (id: string, patch: Partial<UnitDisplay>) => {
+      const cur = units[id];
+      if (!cur) return;
+      units[id] = { ...cur, ...patch };
+      this.update({ units: { ...units } });
+      this.syncUnits();
+    };
     for (let i = 0; i < ev.length; i++) {
       const e = ev[i];
+      this.update({ lastEvent: { ...e, key: this.seq++ } as LastEvent });
       switch (e.type) {
         case 'move': {
           const path: Pos[] = [e.to];
@@ -397,7 +698,7 @@ export class GameController {
             path.push((ev[++i] as Extract<GameEvent, { type: 'move' }>).to);
           }
           await this.scene?.moveAlong(e.who, path);
-          this.syncUnits();
+          show(e.who, { pos: path[path.length - 1] });
           lines.push(`${this.nameOf(e.who)} moves.`);
           break;
         }
@@ -423,7 +724,10 @@ export class GameController {
             label: `${this.nameOf(e.who)} · ${e.purpose}`, sides: e.roll.sides, faces: e.roll.rolls,
             total: e.roll.total, modifier: e.roll.total - (isD20 ? (kept ?? e.roll.rolls[0]) : e.roll.rolls.reduce((a, b) => a + b, 0)),
             kept, advantage: e.advantage, outcome,
-          }, isD20 ? 1150 : 750);
+            vs: isD20 && next ? (next.type === 'attack' ? { label: 'AC', value: next.ac } : { label: 'DC', value: next.dc }) : undefined,
+            side: getCombatant(s, e.who)?.side === 'monster' ? 'enemy' : 'hero',
+            kind: isD20 ? (next?.type === 'save' ? 'save' : /attack$/.test(e.purpose) ? 'attack' : 'check') : /heal/i.test(e.purpose) ? 'heal' : 'damage',
+          }, isD20 ? (mon ? PACE.d20Monster : PACE.d20Hero) : (mon ? PACE.dmgMonster : PACE.dmgHero));
           break;
         }
         case 'attack':
@@ -440,8 +744,10 @@ export class GameController {
           audio.blip('spell');
           if (spell && fx) {
             if ((spell.radius ?? 0) > 0 && fx.at) {
+              const caster = getCombatant(s, e.caster);
+              const at = spell.range === 0 && caster ? caster.pos : fx.at;
               if (spell.range > 0 && fx.attacker) await this.scene?.attackAnim(fx.attacker, fx.attacker, 'spell');
-              this.scene?.burst(fx.at, spell.radius!, spellColor(spell));
+              this.scene?.burst(at, spell.radius!, spellColor(spell));
               await sleep(300);
             } else if (fx.target && fx.attacker && spell.kind !== 'attack') {
               await this.scene?.attackAnim(fx.attacker, fx.target, 'spell', spellColor(spell));
@@ -453,23 +759,24 @@ export class GameController {
         case 'damage':
           this.scene?.hitFx(e.target, e.amount, lastCrit, 'damage');
           audio.blip(lastCrit ? 'crit' : 'hit');
-          this.syncUnits();
+          show(e.target, { hp: e.hpLeft });
           lines.push(`${this.nameOf(e.target)} takes ${e.amount} ${e.damageType} damage (${e.hpLeft} HP left).`);
-          await sleep(250);
+          await sleep(PACE.hit);
           break;
         case 'heal':
           this.scene?.hitFx(e.target, e.amount, false, 'heal');
           audio.blip('heal');
-          this.syncUnits();
+          show(e.target, { hp: e.hpLeft });
           lines.push(`${this.nameOf(e.target)} regains ${e.amount} HP (${e.hpLeft} HP).`);
-          await sleep(250);
+          await sleep(PACE.hit);
           break;
         case 'save':
           lines.push(`${this.nameOf(e.target)} makes a ${e.ability.toUpperCase()} save: ${e.total} vs DC ${e.dc}, ${e.success ? 'success' : 'failure'}.`);
           break;
         case 'condition': {
           const name = this.titleOf(`condition.${e.slug}`);
-          this.syncUnits();
+          const had = units[e.target]?.conditions ?? [];
+          show(e.target, { conditions: e.applied ? [...new Set([...had, e.slug])] : had.filter((x) => x !== e.slug) });
           if (e.applied) this.toast(`${this.nameOf(e.target)} is ${name}!`);
           lines.push(`${this.nameOf(e.target)} ${e.applied ? 'is now' : 'is no longer'} ${name}.`);
           break;
@@ -478,13 +785,12 @@ export class GameController {
           const c = getCombatant(s, e.target);
           if (c?.side === 'monster') this.bumpStat('kills');
           audio.blip('death');
-          this.syncUnits();
+          show(e.target, { dead: true, hp: 0 });
           lines.push(`${this.nameOf(e.target)} ${c?.side === 'hero' ? 'falls unconscious, out of the fight' : 'is slain'}.`);
-          await sleep(300);
+          await sleep(PACE.death);
           break;
         }
         case 'turn':
-          this.scene?.setActive(e.who);
           break;
         case 'info':
           lines.push(e.text);
@@ -497,10 +803,15 @@ export class GameController {
           break;
       }
     }
+    // playback done: displayed values catch up with the engine (e.g. dodging, concentration)
+    this.update({ units: unitsFrom(s) });
     this.syncUnits();
     if (r.citations.length) this.addCitations(r.citations, lines.find((l) => !l.endsWith('moves.')) ?? lines[0] ?? '');
     const meaningful = lines.filter((l) => !l.endsWith('moves.'));
-    if (meaningful.length) this.queueBeat(lines.filter((l, i, a) => !l.endsWith('moves.') || a[i + 1] === undefined), r.citations.map((c) => c.id));
+    if (meaningful.length) {
+      this.log(meaningful.join(' '));
+      this.queueBeat(lines.filter((l, i, a) => !l.endsWith('moves.') || a[i + 1] === undefined), r.citations.map((c) => c.id));
+    }
     this.update();
   }
 
@@ -520,10 +831,10 @@ export class GameController {
   private syncUnits() {
     const s = this.view.state;
     if (!s || !this.scene) return;
-    const views: UnitView[] = s.combatants.map((c) => ({
-      id: c.id, spriteKey: c.spriteKey, side: c.side, pos: c.pos, hp: c.hp, maxHp: c.maxHp, name: c.name, dead: c.dead,
-      conditions: [...c.conditions.map((x) => x.slug), ...(c.dodging ? ['dodging'] : [])],
-    }));
+    const views: UnitView[] = s.combatants.map((c) => {
+      const d = this.view.units[c.id] ?? displayOf(c);
+      return { id: c.id, spriteKey: c.spriteKey, side: c.side, pos: d.pos, hp: d.hp, maxHp: c.maxHp, name: c.name, dead: d.dead, conditions: d.conditions };
+    });
     this.scene.setUnits(views);
   }
 
@@ -538,7 +849,9 @@ export class GameController {
       const sp = s.spells[mode.slug];
       if (!sp) return [];
       const allies = sp.kind === 'heal' || sp.kind === 'buff';
-      return livingCombatants(s, allies ? 'hero' : 'monster').filter((t) => inReach(t, Math.max(1, sp.range))).map((t) => t.id);
+      // range-0 single-target spells affect the caster only
+      if ((sp.radius ?? 0) === 0 && sp.range === 0) return [c.id];
+      return livingCombatants(s, allies ? c.side : c.side === 'hero' ? 'monster' : 'hero').filter((t) => inReach(t, sp.range)).map((t) => t.id);
     }
     return [];
   }
@@ -577,7 +890,7 @@ export class GameController {
     const rulings = [...this.view.rulings];
     for (const c of cits) {
       lit.set(c.id, this.litCounter++);
-      rulings.unshift({ key: this.seq++, citation: { ...c, title: this.titles[c.id] ?? c.title }, context });
+      rulings.unshift({ key: this.seq++, citation: { ...c, title: this.titles[c.id] ?? c.title }, context, round: this.view.state?.round, room: this.view.room?.name });
     }
     this.bumpStat('rulesCited', cits.length);
     this.update({ lit, rulings: rulings.slice(0, 40) });
@@ -588,6 +901,15 @@ export class GameController {
     const lit = new Map(this.view.lit);
     ids.forEach((id) => lit.set(id, this.litCounter++));
     this.update({ lit });
+  }
+
+  clearFocus() {
+    this.update({ focus: null });
+  }
+
+  /** Initiative-chip hover: the scene pulses that unit (null clears). No-op if the scene lacks it. */
+  highlightUnit(id: string | null) {
+    this.sceneX?.highlightUnit?.(id);
   }
 
   focusDoc(id: string) {
@@ -603,7 +925,7 @@ export class GameController {
 
   private say(role: ChatMessage['role'], text: string, extra: Partial<ChatMessage> = {}) {
     const msg: ChatMessage = { id: this.seq++, role, text, ...extra };
-    this.update({ chat: [...this.view.chat, msg].slice(-80) });
+    this.update({ chat: [...this.view.chat, msg].slice(-120) });
     return msg.id;
   }
 
@@ -611,17 +933,34 @@ export class GameController {
     this.update({ chat: this.view.chat.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
   }
 
-  /** Queue engine events for narration; batches while a DM request is in flight. */
-  private queueBeat(lines: string[], cited: string[] = [], immediate = false) {
-    this.pendingBeat.push(...lines);
-    cited.forEach((c) => this.pendingCited.add(c));
-    if (immediate || !this.dmInFlight) this.flushBeat();
+  /** Dim engine log line in chat, shown immediately so the chat lives without an AI key. */
+  private log(text: string) {
+    this.say('log', text);
   }
 
+  /** Queue engine events for narration. Flushed at hero-turn start and combat end (see flushBeat). */
+  private queueBeat(lines: string[], cited: string[] = []) {
+    this.pendingBeat.push(...lines);
+    cited.forEach((c) => this.pendingCited.add(c));
+  }
+
+  /** Sends pending lines to the DM: one call at a time, at most one per DM_MIN_GAP unless forced. */
   private flushBeat(force = false) {
-    if ((this.dmInFlight && !force) || !this.pendingBeat.length) return;
+    if (!this.pendingBeat.length) return;
+    if (this.dmInFlight) {
+      this.dmWanted = true;
+      return;
+    }
+    const wait = this.lastDmAt + DM_MIN_GAP - Date.now();
+    if (!force && wait > 0) {
+      if (!this.dmTimer) this.dmTimer = setTimeout(() => { this.dmTimer = null; this.flushBeat(); }, wait);
+      return;
+    }
+    if (this.dmTimer) clearTimeout(this.dmTimer);
+    this.dmTimer = null;
+    this.lastDmAt = Date.now();
     const events = this.pendingBeat.splice(0).slice(-40);
-    const cited = [...this.pendingCited];
+    const cited = [...this.pendingCited].slice(0, 30);
     this.pendingCited.clear();
     void this.callDm({ mode: 'narrate', events, cited });
   }
@@ -666,7 +1005,10 @@ export class GameController {
     } finally {
       if (!isAsk) this.dmInFlight = false;
       this.update({ dmThinking: false });
-      if (!isAsk) this.flushBeat();
+      if (!isAsk && this.dmWanted) {
+        this.dmWanted = false;
+        this.flushBeat();
+      }
     }
   }
 }
@@ -681,6 +1023,17 @@ function buildTitles(c: GameContent): Record<string, string> {
   c.monsters.forEach((r) => (t[r._id] = r.name));
   c.heroes.forEach((r) => (t[r._id] = r.name));
   return t;
+}
+
+function displayOf(c: Combatant): UnitDisplay {
+  return {
+    hp: c.hp, maxHp: c.maxHp, dead: c.dead, pos: { ...c.pos },
+    conditions: [...c.conditions.map((x) => x.slug), ...(c.dodging ? ['dodging'] : [])],
+  };
+}
+
+function unitsFrom(s: GameState): Record<string, UnitDisplay> {
+  return Object.fromEntries(s.combatants.map((c) => [c.id, displayOf(c)]));
 }
 
 function freeTileNear(arena: ArenaMap, from: Pos, occupied: Set<string>): Pos {
