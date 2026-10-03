@@ -1,17 +1,17 @@
 // Music + SFX via plain HTMLAudio/WebAudio. Unlocked on the first user gesture (title screen click).
 export type Track = 'title' | 'explore' | 'combat' | 'boss' | 'victory';
 
-const MUSIC: Record<Track, string> = {
-  title: '/assets/music/title.mp3',
-  explore: '/assets/music/explore.mp3',
-  combat: '/assets/music/combat.mp3',
-  boss: '/assets/music/boss.mp3',
-  victory: '/assets/music/victory.mp3',
-};
+/** explore/combat have one variant per level: explore-1..5.mp3, combat-1..5.mp3. */
+const VARIANTS = 5;
+function musicUrl(track: Track, variant = 1): string {
+  if (track === 'explore' || track === 'combat') return `/assets/music/${track}-${((Math.max(1, variant) - 1) % VARIANTS) + 1}.mp3`;
+  return `/assets/music/${track}.mp3`;
+}
 
 class AudioManager {
   private current: HTMLAudioElement | null = null;
   private currentTrack: Track | null = null;
+  private currentUrl: string | null = null;
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
   musicVolume = 0.35;
@@ -29,10 +29,13 @@ class AudioManager {
     }
   }
 
-  play(track: Track) {
-    if (this.currentTrack === track) return;
+  /** `variant` (1-based, usually the level number) picks the explore/combat track for that level. */
+  play(track: Track, variant = 1) {
+    const url = musicUrl(track, variant);
+    if (this.currentUrl === url) return;
+    this.currentUrl = url;
     const prev = this.current;
-    const next = new Audio(MUSIC[track]);
+    const next = new Audio(url);
     next.loop = true;
     next.volume = 0;
     this.current = next;

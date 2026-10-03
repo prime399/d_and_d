@@ -316,11 +316,12 @@ export class GameController {
     });
     this.syncUnits();
     this.enterExploreView();
-    audio.play(room.isBoss ? 'boss' : 'explore');
+    audio.play(room.isBoss ? 'boss' : 'explore', index + 1);
 
     this.say('system', `Level ${index + 1} of ${this.rooms.length}: ${room.name}${arena.title && arena.title !== room.name ? ` (${arena.title})` : ''}`);
     this.queueBeat([
-      `The party enters ${room.name}${arena.title && arena.title !== room.name ? `, ${arena.title}` : ''}. ${room.description}`,
+      `The party enters ${room.name}${arena.title && arena.title !== room.name ? `, ${arena.title}` : ''}.`,
+      ...sentences(room.description),
       `They explore freely; ${this.lairs.length} monster lair${this.lairs.length === 1 ? '' : 's'} lurk somewhere in the dark.`,
     ], []);
     this.flushBeat(true);
@@ -573,7 +574,7 @@ export class GameController {
     // revived heroes need fresh sprites (their old ones played the death animation)
     if (downed.size) this.syncUnits(downed);
     this.syncUnits();
-    if (!this.rooms[this.view.roomIndex]?.isBoss) audio.play('explore');
+    if (!this.rooms[this.view.roomIndex]?.isBoss) audio.play('explore', this.view.roomIndex + 1);
     this.enterExploreView();
   }
 
@@ -802,7 +803,7 @@ export class GameController {
     this.syncUnits();
     this.sceneX?.setMode?.('combat');
     audio.blip('ambush');
-    audio.play(this.rooms[this.view.roomIndex]?.isBoss ? 'boss' : 'combat');
+    audio.play(this.rooms[this.view.roomIndex]?.isBoss ? 'boss' : 'combat', this.view.roomIndex + 1);
     this.toast('Ambush!');
     const names = list.map((m) => m.c.name).join(', ');
     this.say('system', `Ambush! ${names} attack${list.length === 1 ? 's' : ''}.`);
@@ -873,7 +874,7 @@ export class GameController {
       audio.blip('spell');
       this.toast(`Lore stone: ${lore.title}`);
       this.log(`${L.name} reads the lore stone "${lore.title}": ${lore.text}`);
-      this.queueBeat([`The party reads the lore stone "${lore.title}": ${lore.text}`]);
+      this.queueBeat(sentences(`The party reads the lore stone "${lore.title}": ${lore.text}`));
       this.flushBeat(true);
     } else if (it.kind === 'door') {
       this.finishLevel();
@@ -1585,7 +1586,8 @@ export class GameController {
     if (this.dmTimer) clearTimeout(this.dmTimer);
     this.dmTimer = null;
     this.lastDmAt = Date.now();
-    const events = this.pendingBeat.splice(0).slice(-40);
+    // the DM API caps each event line at 200 chars
+    const events = this.pendingBeat.splice(0).slice(-40).map((e) => (e.length > 200 ? `${e.slice(0, 197)}...` : e));
     const cited = [...this.pendingCited].slice(0, 30);
     this.pendingCited.clear();
     void this.callDm({ mode: 'narrate', events, cited });
@@ -1640,6 +1642,17 @@ export class GameController {
 }
 
 // ---------------- helpers ----------------
+
+/** Splits prose into lines short enough for the DM API (200 chars each). */
+function sentences(text: string): string[] {
+  const out: string[] = [];
+  for (const part of text.split(/(?<=[.!?])\s+/)) {
+    const last = out[out.length - 1];
+    if (last && last.length + part.length < 190) out[out.length - 1] = `${last} ${part}`;
+    else out.push(part.length > 200 ? `${part.slice(0, 197)}...` : part);
+  }
+  return out.filter(Boolean);
+}
 
 function buildTitles(c: GameContent): Record<string, string> {
   const t: Record<string, string> = {};
