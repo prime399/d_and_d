@@ -108,11 +108,18 @@ async function sanityTools(lookups: DmLookup[]) {
   ];
   for (const ep of endpoints) {
     if (!ep.url || !ep.token) continue;
-    const client = await createMCPClient({
-      transport: { type: 'http', url: ep.url, headers: { Authorization: `Bearer ${ep.token}` } },
-    });
-    clients.push(client);
-    const remote = await client.tools();
+    let remote: ToolSet;
+    try {
+      const client = await createMCPClient({
+        transport: { type: 'http', url: ep.url, headers: { Authorization: `Bearer ${ep.token}` } },
+      });
+      clients.push(client);
+      remote = (await client.tools()) as ToolSet;
+    } catch (err) {
+      // don't leak already-open clients if a later endpoint fails
+      await Promise.all(clients.map((c) => c.close().catch(() => {})));
+      throw err;
+    }
     for (const [name, t] of Object.entries(remote)) {
       if (name === 'initial_context' && ep.prefix) continue;
       const exec = t.execute;
@@ -129,10 +136,95 @@ async function sanityTools(lookups: DmLookup[]) {
   return { tools, close: () => Promise.all(clients.map((c) => c.close())) };
 }
 
+const pick = <T,>(xs: readonly T[]) => xs[Math.floor(Math.random() * xs.length)];
+
+/** Phrase banks for the offline template narrator. {a} attacker, {t} target, {w} weapon, {n} amount. */
+const BANK = {
+  crit: [
+    "{a}'s {w} finds the gap in {t}'s guard and bites deep for {n}.",
+    'A perfect strike. {a} drives the {w} home and {t} reels from {n} damage.',
+    'Steel sings. {a} lands a brutal blow on {t}, {n} damage in one savage arc.',
+  ],
+  hit: [
+    "{a}'s {w} connects; {t} grunts, {n} damage the poorer.",
+    '{a} presses in and the {w} draws blood from {t}.',
+    '{t} is too slow. The {w} strikes true.',
+  ],
+  miss: [
+    "{t} twists aside and {a}'s {w} rings off stone.",
+    "{a}'s {w} whistles past {t}, finding only shadow.",
+    '{t} sees it coming. The {w} glances off harmlessly.',
+  ],
+  slain: [
+    '{t} crumples to the floor and does not rise.',
+    'With a final rattling breath, {t} falls still.',
+    '{t} collapses, the fight gone out of it for good.',
+  ],
+  heroDown: [
+    '{t} drops to the flagstones, senseless.',
+    'The light leaves {t}\'s eyes as they fall unconscious.',
+  ],
+  heal: [
+    'Warm light knits {t}\'s wounds; {n} hit points return.',
+    '{t} breathes easier as {n} hit points flow back.',
+  ],
+  spell: [
+    'Arcane words crackle from {a}\'s lips: {w}.',
+    '{a} shapes the air itself and unleashes {w}.',
+  ],
+  condition: [
+    '{t} is now {w}.',
+    'The magic takes hold. {t} is {w}.',
+  ],
+  saveOk: ['{t} shrugs off the effect.', '{t} grits their teeth and resists.'],
+  enter: [
+    'Torchlight spills into {w}. Shapes stir in the dark, and steel is drawn.',
+    'You step into {w}. The air is thick with damp and the stink of goblin.',
+  ],
+  idle: ['The torches gutter. Something stirs in the dark.', 'Your footsteps echo. The warren waits.'],
+};
+
+const fill = (tpl: string, v: Record<string, string | number | undefined>) =>
+  tpl.replace(/\{(\w)\}/g, (_, k: string) => String(v[k] ?? '')).replace(/\s+/g, ' ').trim();
+
+/** Turns engine log lines into 1–2 sentences of narration with [[doc-id]] citations. */
+function narrateOffline(body: z.infer<typeof Body>): string {
+  const cite = (id: string) => (body.cited.includes(id) ? ` [[${id}]]` : '');
+  const out: string[] = [];
+  const lines = body.events;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    let m: RegExpMatchArray | null;
+    if ((m = l.match(/^The party enters (.+)\.$/))) out.push(fill(pick(BANK.enter), { w: m[1] }) + cite('rule.initiative'));
+    else if ((m = l.match(/^(.+?) attacks (.+?) with (.+?): .*?(CRITICAL HIT|hit|miss)\.$/))) {
+      const [, a, t, w, res] = m;
+      const dmg = lines[i + 1]?.match(/takes (\d+)/)?.[1];
+      if (res === 'CRITICAL HIT') out.push(fill(pick(BANK.crit), { a, t, w, n: dmg }) + cite('rule.critical-hits'));
+      else if (res === 'hit') out.push(fill(pick(BANK.hit), { a, t, w, n: dmg }) + cite('rule.attack-rolls'));
+      else out.push(fill(pick(BANK.miss), { a, t, w }));
+    } else if ((m = l.match(/^(.+?) is slain\.$/))) out.push(fill(pick(BANK.slain), { t: m[1] }));
+    else if ((m = l.match(/^(.+?) falls unconscious/))) out.push(fill(pick(BANK.heroDown), { t: m[1] }) + cite('rule.dropping-to-0'));
+    else if ((m = l.match(/^(.+?) regains (\d+) HP/))) out.push(fill(pick(BANK.heal), { t: m[1], n: m[2] }) + cite('rule.healing'));
+    else if ((m = l.match(/^(.+?) casts (.+?)(?: \(level \d+ slot\))?\.$/))) {
+      const slug = body.cited.find((c) => c.startsWith('spell.') && m![2].toLowerCase().replace(/\s+/g, '-') === c.slice(6));
+      out.push(fill(pick(BANK.spell), { a: m[1], w: m[2] }) + (slug ? ` [[${slug}]]` : ''));
+    } else if ((m = l.match(/^(.+?) is now (.+?)\.$/))) {
+      const slug = `condition.${m[2].toLowerCase().replace(/\s+/g, '-')}`;
+      out.push(fill(pick(BANK.condition), { t: m[1], w: m[2] }) + cite(slug));
+    } else if ((m = l.match(/^(.+?) makes a .* save: .*success\.$/))) out.push(fill(pick(BANK.saveOk), { t: m[1] }));
+    else if (/takes the Dodge action/.test(l)) out.push(l + cite('rule.dodge'));
+    else if (/^All foes in the room are defeated/.test(l)) out.push('Silence falls. The last of your foes lies still, and the way ahead opens.');
+    else if (/^The whole party has fallen/.test(l)) out.push('Darkness closes in. The warren claims another band of heroes.');
+  }
+  if (!out.length) return body.room?.description ?? pick(BANK.idle);
+  // keep the beat short: the most dramatic two sentences (crits, deaths, endings come last-weighted)
+  const picked = out.length <= 2 ? out : [out.find((s) => s.includes('[[rule.critical-hits]]')) ?? out[out.length - 2], out[out.length - 1]];
+  return [...new Set(picked)].join(' ');
+}
+
 function offlineText(body: z.infer<typeof Body>): string {
   if (body.mode === 'ask') return 'The Dungeon Master is resting (no AI key configured). Check the rules cards in the panel for what the engine applied.';
-  const last = body.events.slice(-3).join(' ');
-  return last || (body.room ? body.room.description : 'The torches gutter. Something stirs in the dark.');
+  return narrateOffline(body);
 }
 
 export async function POST(req: Request) {
@@ -143,7 +235,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: 'Bad request' }, { status: 400 });
   const body = parsed.data;
 
-  const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+  const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || req.headers.get('x-vercel-oidc-token'));
   if (!hasModel) {
     const res: DmResponse = { text: offlineText(body), lookups: [], ids: body.cited, model: null, backend: 'offline' };
     return Response.json(res);
