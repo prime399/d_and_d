@@ -118,3 +118,16 @@ test('door opens after clearing all lairs', async ({ page }) => {
   await page.screenshot({ path: 'e2e/out/scene-l1-door.png' });
   expect(errors.filter((e) => !ignorable(e))).toEqual([]);
 });
+
+test('levels 2-5 render', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errors: string[] = [];
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await boot(page, errors);
+  for (const i of [1, 2, 3, 4]) {
+    await page.evaluate((i) => (window as unknown as { __game: G }).__game.enterRoom(i), i);
+    await page.waitForTimeout(2800);
+    await page.screenshot({ path: `e2e/out/scene-l${i + 1}-start.png` });
+  }
+  expect(errors.filter((e) => !ignorable(e))).toEqual([]);
+});
