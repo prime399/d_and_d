@@ -341,7 +341,9 @@ export class GameController {
       const m = bySlug.get(g.monster);
       if (!m) return;
       for (let i = 0; i < g.count; i++) {
-        if (room.isBoss && gi === 0 && i === 0 && defs.length > 1) buckets[defs.length - 1].push(m);
+        // Boss level: the boss plus the last encounter group's first monster (its escort) hold the throne.
+        const escort = room.isBoss && defs.length > 1 && gi === room.encounter.length - 1 && gi > 0 && i === 0;
+        if (room.isBoss && defs.length > 1 && ((gi === 0 && i === 0) || escort)) buckets[defs.length - 1].push(m);
         else buckets[rr++ % (room.isBoss && defs.length > 1 ? defs.length - 1 : defs.length)].push(m);
       }
     });
@@ -1637,13 +1639,17 @@ export class GameController {
           srdVersion: this.view.srdVersion,
         }),
       });
-      const data = (await res.json()) as DmResponse & { error?: string };
-      if (data.error) throw new Error(data.error);
+      const data = (await res.json().catch(() => ({}))) as DmResponse & { error?: string };
+      if (!res.ok || data.error) throw Object.assign(new Error(data.error ?? `HTTP ${res.status}`), { status: res.status });
       this.patchMsg(msgId, { text: data.text, lookups: data.lookups, backend: data.backend, pending: false });
       this.lightIds(data.ids);
       if (data.lookups.length) this.bumpStat('lookups', data.lookups.length);
     } catch (err) {
-      this.patchMsg(msgId, { text: `The DM's voice is lost in the dark. (${(err as Error).message})`, pending: false });
+      // Narration is optional flavour: on a busy/limited DM just drop the beat instead of showing an error card.
+      // Player questions still get an in-voice answer so they know to retry.
+      const busy = (err as { status?: number }).status === 429 || (err as { status?: number }).status === 503;
+      if (!isAsk) this.update({ chat: this.view.chat.filter((m) => m.id !== msgId) });
+      else this.patchMsg(msgId, { text: busy ? 'The DM is catching their breath. Ask again in a moment.' : "The DM's voice is lost in the dark. Ask again in a moment.", pending: false });
     } finally {
       if (!isAsk) this.dmInFlight = false;
       this.update({ dmThinking: false });
