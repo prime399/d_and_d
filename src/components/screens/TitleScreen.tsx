@@ -57,10 +57,13 @@ export function TitleScreen({ ctrl, onCredits }: { ctrl: GameController; onCredi
   };
 
   return (
-    <div ref={ref} className="scr-title fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="title-heading">
-      <div aria-hidden className="scr-backdrop" />
-      <div aria-hidden className="scr-torch scr-torch-l" />
-      <div aria-hidden className="scr-torch scr-torch-r" />
+    <div ref={ref} className="scr-title fixed inset-0 z-50 overflow-x-hidden overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="title-heading">
+      {/* Decorative layers overscan the viewport; clip them so they never create scrollbars. */}
+      <div aria-hidden className="scr-decor">
+        <div className="scr-backdrop" />
+        <div className="scr-torch scr-torch-l" />
+        <div className="scr-torch scr-torch-r" />
+      </div>
       <div aria-hidden className="scr-fog" />
       <Embers />
       <div aria-hidden className="scr-vignette" />
