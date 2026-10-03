@@ -10,7 +10,6 @@ type G = {
   debugLairs?: () => Lair[];
   scene: Record<string, unknown> & { arena?: { width: number; height: number; walls: boolean[]; heroSpawns: Pos[]; lore: { pos: Pos }[]; gold: Pos[] } };
 };
-const W = () => (window as unknown as { __game: G }).__game;
 
 const ignorable = (e: string) => /favicon|DM|fetch|Sanity|api|Failed to load resource|429|500/i.test(e);
 

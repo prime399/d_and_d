@@ -660,7 +660,8 @@ export class DungeonScene extends Phaser.Scene {
     const ox = rt.x;
     const oy = rt.y;
     rt.clear();
-    rt.fill(0x06030b, AMBIENT);
+    // On large levels the fog already handles the unknown, so the lit world can breathe a little more.
+    rt.fill(0x06030b, this.large ? AMBIENT * 0.78 : AMBIENT);
     const t = time / 1000;
     const stamp = (x: number, y: number, radiusTiles: number, alpha: number) => {
       rt.stamp('light', undefined, x - ox, y - oy, { scale: (radiusTiles * TILE * 2) / 128, alpha, blendMode: Phaser.BlendModes.ERASE });
@@ -865,10 +866,22 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private fogTarget = new Float32Array(0);
+  private revealRadius = 7;
+  private revealKey = '';
+
+  /** Keep vision current when heroes move without an explicit reveal (combat turns). */
+  private autoReveal() {
+    if (!this.fogOn) return;
+    const heroes = [...this.units.values()].filter((u) => u.view.side === 'hero' && !u.view.dead).map((u) => u.view.pos);
+    const key = heroes.map((p) => `${p.x},${p.y}`).sort().join('|');
+    if (heroes.length && key !== this.revealKey) this.revealAround(heroes, this.revealRadius);
+  }
 
   /** Recompute what the party sees. Tiles leave "visible" for "explored" once out of sight. */
   revealAround(positions: Pos[], radius: number) {
     if (!this.fogOn || !this.fov) return;
+    this.revealRadius = radius;
+    this.revealKey = positions.map((p) => `${p.x},${p.y}`).sort().join('|');
     const { width: W, height: H, rows } = this.arena;
     const R = Math.max(1, Math.round(radius));
     const dist = new Float32Array(W * H).fill(Infinity);
@@ -943,8 +956,15 @@ export class DungeonScene extends Phaser.Scene {
 
   /** Monsters on tiles the party can't currently see are hidden (dying ones finish their animation). */
   private applyUnitVisibility() {
-    this.units.forEach((u) => {
+    const af = this.attackFocus && this.attackFocus.until > this.time.now ? this.attackFocus : null;
+    this.units.forEach((u, id) => {
       if (u.view.side === 'hero') return;
+      // an attacker shooting from the dark is revealed for the length of its attack
+      if (af && (af.a === id || af.t === id) && !u.view.dead) {
+        u.container.setVisible(true);
+        u.hud.setVisible(true);
+        return;
+      }
       const tile = { x: Math.floor(u.container.x / TILE), y: Math.floor((u.container.y - 1) / TILE) };
       const vis = !this.fogOn || this.tileVisible(tile) || this.tileVisible(u.view.pos) || !!u.container.getData('dying');
       if (u.container.visible !== vis) {
@@ -1094,6 +1114,7 @@ export class DungeonScene extends Phaser.Scene {
       }
     });
     this.refreshActive();
+    this.autoReveal();
     this.applyUnitVisibility();
   }
 
