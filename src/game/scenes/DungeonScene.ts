@@ -92,6 +92,8 @@ export class DungeonScene extends Phaser.Scene {
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private activeId: string | null = null;
   private hoverUnitId: string | null = null;
+  private highlightId: string | null = null;
+  private highlightFx: Phaser.GameObjects.Graphics | null = null;
   private lastAttacker: string | null = null;
   private baseZoom = 1;
   private baseCenter = { x: 0, y: 0 };
@@ -211,6 +213,8 @@ export class DungeonScene extends Phaser.Scene {
   loadArena(arena: ArenaMap, info?: { index: number; name: string }) {
     this.arena = arena;
     this.mapLayer.removeAll(true);
+    this.highlightId = null;
+    this.highlightFx = null;
     this.units.forEach((u) => { u.container.destroy(); u.hud.destroy(); });
     this.units.clear();
     this.fxLayer.forEach((o) => o.destroy());
@@ -577,6 +581,7 @@ export class DungeonScene extends Phaser.Scene {
     });
     this.units.forEach((u, id) => {
       if (!seen.has(id)) {
+        if (id === this.highlightId) this.highlightUnit(null);
         u.container.destroy();
         u.hud.destroy();
         this.units.delete(id);
@@ -667,6 +672,33 @@ export class DungeonScene extends Phaser.Scene {
     this.updateLabels();
   }
 
+  /** Spotlight a unit (initiative-rail hover): bright pulsing outline ring plus a small bob. `null` clears. */
+  highlightUnit(id: string | null) {
+    if (id === this.highlightId) return;
+    const prev = this.highlightId ? this.units.get(this.highlightId) : undefined;
+    if (prev) {
+      this.tweens.killTweensOf(prev.body);
+      prev.body.setY(0);
+    }
+    this.highlightFx?.destroy();
+    this.highlightFx = null;
+    this.highlightId = id;
+    const u = id ? this.units.get(id) : undefined;
+    if (!u || u.view.dead) {
+      this.updateLabels();
+      return;
+    }
+    const color = u.view.side === 'hero' ? HERO_BLUE : ENEMY_ROSE;
+    const g = this.add.graphics();
+    g.lineStyle(2, 0xffffff, 0.9).strokeEllipse(0, -1, 20, 9);
+    g.lineStyle(1, color, 1).strokeEllipse(0, -1, 24, 11);
+    u.container.addAt(g, 1);
+    this.highlightFx = g;
+    this.tweens.add({ targets: g, alpha: { from: 1, to: 0.45 }, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (!reducedMotion()) this.tweens.add({ targets: u.body, y: -2, duration: 260, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.updateLabels();
+  }
+
   private updateHoverUnit() {
     const t = this.hoverTile;
     let found: string | null = null;
@@ -677,7 +709,7 @@ export class DungeonScene extends Phaser.Scene {
 
   private updateLabels() {
     this.units.forEach((u, id) => {
-      const show = !u.view.dead && (id === this.hoverUnitId || (id === this.activeId && u.view.side === 'monster'));
+      const show = !u.view.dead && (id === this.hoverUnitId || id === this.highlightId || (id === this.activeId && u.view.side === 'monster'));
       u.label.setText(u.view.name);
       if (show !== u.label.getData('shown')) {
         u.label.setData('shown', show);
@@ -893,6 +925,7 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private killAnim(u: UnitSprite) {
+    if (u.view.id === this.highlightId) this.highlightUnit(null);
     u.container.setData('dying', true);
     u.body.stop();
     u.hpBar.clear();
