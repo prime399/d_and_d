@@ -111,7 +111,7 @@ function Toasts({ toast }: { toast: string | null }) {
     return () => clearTimeout(t);
   }, [items]);
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-1.5 px-3" aria-live="polite" role="status">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[200px] z-30 flex flex-col items-center gap-1.5 px-3" aria-live="polite" role="status">
       {items.map((t) => (
         <div key={t.id} className={`scr-toast scr-toast-${t.tone}`}>
           <span aria-hidden className="scr-toast-ic">{TOAST_ICON[t.tone]}</span>
