@@ -34,16 +34,18 @@ class AudioManager {
     this.current = next;
     this.currentTrack = track;
     void next.play().catch(() => {});
-    this.fade(next, this.muted ? 0 : this.musicVolume, 900);
-    if (prev) this.fade(prev, 0, 700, () => prev.pause());
+    this.fade(next, () => this.musicVolume, 900);
+    if (prev) this.fade(prev, () => 0, 700, () => prev.pause());
   }
 
-  private fade(el: HTMLAudioElement, to: number, ms: number, done?: () => void) {
+  /** Fades toward to(); re-evaluated each frame and forced to 0 while muted, so muting mid-fade sticks. */
+  private fade(el: HTMLAudioElement, to: () => number, ms: number, done?: () => void) {
     const from = el.volume;
     const start = performance.now();
     const step = (t: number) => {
       const k = Math.min(1, (t - start) / ms);
-      el.volume = Math.min(1, Math.max(0, from + (to - from) * k));
+      const target = this.muted ? 0 : to();
+      el.volume = this.muted ? 0 : Math.min(1, Math.max(0, from + (target - from) * k));
       if (k < 1) requestAnimationFrame(step);
       else done?.();
     };
