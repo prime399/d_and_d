@@ -661,6 +661,8 @@ export class GameController {
       return this.toast(`The exit is sealed. Clear ${left} more lair${left === 1 ? '' : 's'} to open it.`);
     }
     if (this.sleeperTiles().has(posKey(p))) {
+      // already in range (e.g. standing beside it after a fight): clicking the monster wakes its lair
+      if (await this.checkWake()) return;
       const adj = this.approachTile(L.pos, p);
       return adj ? this.walkTo(adj) : undefined;
     }
@@ -697,6 +699,8 @@ export class GameController {
           this.walkTarget = null;
           const obj = tgt.interactAt && this.objectAt(tgt.interactAt);
           if (obj) await this.doInteract(obj);
+          // a walk that took no steps still has to notice a lair the party already stands next to
+          else if (guard === 0) await this.checkWake();
           break;
         }
         // followers are not obstacles: the leader swaps places with them
