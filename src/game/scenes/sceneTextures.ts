@@ -130,4 +130,73 @@ export function buildSceneTextures(scene: Phaser.Scene) {
     torch.refresh();
     FLAMES.forEach((_, i) => torch.add(`torch_f${i}`, 0, i * 8, 0, 8, 14));
   }
+  // Floor clutter: bone bits (2 variants) and rubble (3 variants), 16×16 each, drawn under everything.
+  const clutter = canvas('clutter', 16 * 5, 16);
+  if (clutter) {
+    const ctx = clutter.getContext();
+    const bone = '#d9d0bd';
+    const boneDim = '#9a8f7c';
+    // variant 0: crossed long bones
+    paintOutlined(ctx, ['#.....#', '.#...#.', '..#.#..', '...#...', '..#.#..', '.#...#.', '#.....#'], 4, 5, bone, '#2a2024');
+    paint(ctx, ['#.....#', '.......', '.......', '.......', '.......', '.......', '#.....#'], 4, 5, boneDim);
+    // variant 1: a rib arc and a knuckle
+    paintOutlined(ctx, ['.####.', '#....#', '#.##.#', '..##..'], 16 + 3, 4, bone, '#2a2024');
+    paintOutlined(ctx, ['##', '##'], 16 + 11, 11, boneDim, '#2a2024');
+    paintOutlined(ctx, ['###'], 16 + 4, 12, bone, '#2a2024');
+    // rubble variants: pebbles of the wall stone with a lit top edge
+    const stones: [number, number, number, number][][] = [
+      [[2, 9, 4, 3], [7, 11, 3, 2], [10, 6, 4, 3], [5, 4, 2, 2], [12, 12, 2, 2]],
+      [[3, 3, 5, 4], [9, 9, 4, 3], [2, 11, 2, 2], [12, 4, 2, 2], [7, 13, 3, 2]],
+      [[5, 6, 6, 4], [2, 12, 3, 2], [12, 11, 3, 3], [10, 2, 2, 2]],
+    ];
+    stones.forEach((list, v) => {
+      const ox = 32 + v * 16;
+      list.forEach(([x, y, w, h]) => {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(ox + x, y + 1, w + 1, h);
+        ctx.fillStyle = '#4a3f45';
+        ctx.fillRect(ox + x, y, w, h);
+        ctx.fillStyle = '#6e6068';
+        ctx.fillRect(ox + x, y, w, 1);
+        ctx.fillStyle = '#2c2429';
+        ctx.fillRect(ox + x + w - 1, y + 1, 1, h - 1);
+      });
+    });
+    clutter.refresh();
+    for (let i = 0; i < 5; i++) clutter.add(i < 2 ? `bones_${i}` : `rubble_${i - 2}`, 0, i * 16, 0, 16, 16);
+  }
+
+  // Lore stone: a carved slab (16×22) and its glowing rune overlay, drawn additively and pulsed.
+  const SLAB: Bitmap = [
+    '...######...', '..#aaaaaa#..', '.#aaaaaaaa#.', '.#abbbbbba#.', '#abbbbbbbba#', '#abbbbbbbbb#', '#abbbbbbbbb#',
+    '#abbbbbbbbb#', '#abbbbbbbbb#', '#abbbbbbbbb#', '#abbbbbbbbb#', '#abbbbbbbbb#', '#abbbbbbbbb#', '#abbbbbbbbb#',
+    '#cbbbbbbbbc#', '#cccccccccc#', '############',
+  ];
+  const RUNES: Bitmap = ['..#..', '.###.', '#.#.#', '..#..', '.#.#.', '#...#', '.....', '.#.#.', '..#..', '.#.#.'];
+  const stone = canvas('runestone', 16 * 2, 22);
+  if (stone) {
+    const ctx = stone.getContext();
+    // plinth
+    ctx.fillStyle = '#1b1416';
+    ctx.fillRect(1, 17, 14, 5);
+    ctx.fillStyle = '#3d3238';
+    ctx.fillRect(2, 17, 12, 1);
+    ctx.fillStyle = '#2a2227';
+    ctx.fillRect(2, 18, 12, 3);
+    paint(ctx, SLAB, 2, 1, (ch) => ({ '#': '#120a14', a: '#8a7c86', b: '#5a4c56', c: '#3a2f36' })[ch] ?? null);
+    // carved (dark) runes on the slab
+    paint(ctx, RUNES, 5, 5, '#2a1f28');
+    // glow frame: just the rune pixels, bright
+    paint(ctx, RUNES, 16 + 5, 5, '#ffffff');
+    stone.refresh();
+    stone.add('slab', 0, 0, 0, 16, 22);
+    stone.add('runes', 0, 16, 0, 16, 22);
+  }
+
+  // Minimap skull marker (5×5) for an uncleared lair.
+  const mskull = canvas('miniskull', 7, 7);
+  if (mskull) {
+    paintOutlined(mskull.getContext(), ['.###.', '#####', '#.#.#', '#####', '.#.#.'], 1, 1, '#ff5a6e');
+    mskull.refresh();
+  }
 }

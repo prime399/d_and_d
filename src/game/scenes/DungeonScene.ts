@@ -2,7 +2,9 @@
 import * as Phaser from 'phaser';
 import type { ArenaMap } from '../maps';
 import type { Pos } from '../engine/types';
+import { FOV } from 'rot-js';
 import { buildSceneTextures, iconFrame, ICON_SIZE } from './sceneTextures';
+import { MinimapScene, type MinimapData } from './MinimapScene';
 
 export const TILE = 16;
 
@@ -54,13 +56,20 @@ const FLOOR_CRACKS = ['floor_2', 'floor_3', 'floor_4', 'floor_5', 'floor_6', 'fl
 // Depth bands.
 const D = {
   floor: 0, floorShade: 1, wall: 2, wallDecor: 3, cap: 4, unit: 10, darkness: 100, glow: 101, dust: 102,
-  overlay: 103, hover: 104, hud: 106, fx: 110, text: 120, title: 200,
+  fog: 102.5, overlay: 103, hover: 104, hud: 106, fx: 110, text: 120, title: 200,
 } as const;
 
 const AMBIENT = 0.42; // darkness alpha outside any light
 const HERO_BLUE = 0x5ad1ff;
 const ENEMY_ROSE = 0xff5a6e;
 const AMBER = 0xffd27a;
+const RUNE_VIOLET = 0xb59cff;
+/** Tiles that block sight for the fog of war (matches the engine: walls, the door and pillars). */
+const OPAQUE = new Set(['#', 'D', 'P']);
+/** Large hand-made levels scroll; anything bigger than this gets the follow camera, fog and minimap. */
+const isLarge = (a: ArenaMap) => a.width > 22 || a.height > 14;
+/** Rows of world space above the map (door arch and wall caps) kept in the static bake and fog. */
+const TOP_PAD = 3;
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -77,6 +86,24 @@ function roman(n: number) {
   return s;
 }
 
+/**
+ * Flat registry of live map objects. Unlike a Container, members keep their own depth on the scene
+ * display list, so props y-sort with units and sit above the baked static layer.
+ */
+class LiveSet {
+  list: Phaser.GameObjects.GameObject[] = [];
+  add(o: Phaser.GameObjects.GameObject | Phaser.GameObjects.GameObject[]) {
+    this.list.push(...(Array.isArray(o) ? o : [o]));
+  }
+  getByName(name: string) {
+    return this.list.find((o) => o.active && o.name === name) ?? null;
+  }
+  removeAll(destroy: boolean) {
+    if (destroy) this.list.forEach((o) => o.destroy());
+    this.list = [];
+  }
+}
+
 export class DungeonScene extends Phaser.Scene {
   private arena!: ArenaMap;
   private units = new Map<string, UnitSprite>();
@@ -84,7 +111,31 @@ export class DungeonScene extends Phaser.Scene {
   private overlayOpts: OverlayOpts | null = null;
   private hoverGfx!: Phaser.GameObjects.Graphics;
   private hoverTile: Pos | null = null;
-  private mapLayer!: Phaser.GameObjects.Container;
+  private mapLayer = new LiveSet();
+  /** Every non-animated floor/wall piece is baked into this once per level. */
+  private staticRT?: Phaser.GameObjects.RenderTexture;
+  private staticTopRT?: Phaser.GameObjects.RenderTexture;
+  private timers: Phaser.Time.TimerEvent[] = [];
+  private statics: Phaser.GameObjects.GameObject[] = [];
+  private large = false;
+  private camTarget = { x: 0, y: 0 };
+  private followId: string | null = null;
+  private focusId: string | null = null;
+  private snapCamera = false;
+  private attackFocus: { a: string; t: string; until: number } | null = null;
+  private fogTex?: Phaser.Textures.CanvasTexture;
+  private fogImg?: Phaser.GameObjects.Image;
+  private fogOn = false;
+  /** 0 unseen, 1 explored, 2 visible */
+  private seen = new Uint8Array(0);
+  private fogAlpha = new Float32Array(0);
+  private fogDirty = false;
+  private fogVersion = 0;
+  private arenaVersion = 0;
+  private fov?: InstanceType<typeof FOV.PreciseShadowcasting>;
+  private vignette?: { radius: number; strength: number };
+  private mode: 'explore' | 'combat' = 'explore';
+  private minimap?: MinimapScene;
   private fxLayer: Phaser.GameObjects.GameObject[] = [];
   private darkness!: Phaser.GameObjects.RenderTexture;
   private torchLights: Light[] = [];
@@ -127,7 +178,6 @@ export class DungeonScene extends Phaser.Scene {
       this.units.forEach((u) => u.label.setFontFamily(this.pixelFont));
     });
 
-    this.mapLayer = this.add.container(0, 0);
     this.overlay = this.add.graphics().setDepth(D.overlay);
     this.hoverGfx = this.add.graphics().setDepth(D.hover);
     this.darkness = this.add.renderTexture(0, 0, 8, 8).setOrigin(0, 0).setDepth(D.darkness);
@@ -140,12 +190,14 @@ export class DungeonScene extends Phaser.Scene {
 
     try {
       // Screen-space vignette for mood. Optional: skipped if filters are unavailable.
-      this.cameras.main.filters?.external.addVignette(0.5, 0.5, 0.9, 0.45, 0x05020a);
+      this.vignette = this.cameras.main.filters?.external.addVignette(0.5, 0.5, 0.9, 0.45, 0x05020a);
     } catch {
       /* no-op */
     }
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      const mm = this.minimap?.screenRect;
+      if (mm && p.x >= mm.x && p.x <= mm.x + mm.w && p.y >= mm.y && p.y <= mm.y + mm.h) return;
       const t = this.worldToTile(p.worldX, p.worldY);
       if (t) this.onTileClick(t);
     });
@@ -163,6 +215,11 @@ export class DungeonScene extends Phaser.Scene {
       this.onTileHover(null);
     });
     this.scale.on('resize', () => this.fitCamera());
+    // Screen-space minimap as its own scene on top, so it never scrolls or zooms with the world.
+    if (!this.scene.get('minimap')) {
+      this.minimap = new MinimapScene(() => this.minimapData());
+      this.scene.add('minimap', this.minimap, true);
+    }
     this.readyResolve();
   }
 
@@ -212,6 +269,9 @@ export class DungeonScene extends Phaser.Scene {
   /** Draw a fresh room. `info` (optional) shows the room title card. */
   loadArena(arena: ArenaMap, info?: { index: number; name: string }) {
     this.arena = arena;
+    this.tweens.killTweensOf([...this.mapLayer.list, ...this.fxLayer]);
+    this.timers.forEach((t) => t.remove());
+    this.timers = [];
     this.mapLayer.removeAll(true);
     this.highlightId = null;
     this.highlightFx = null;
@@ -225,9 +285,16 @@ export class DungeonScene extends Phaser.Scene {
     this.overlayOpts = null;
     this.activeId = null;
     this.cameras.main.resetFX?.();
+    this.large = isLarge(arena);
+    this.followId = null;
+    this.focusId = null;
+    this.attackFocus = null;
+    this.arenaVersion++;
 
     this.drawRoom();
+    this.bakeStatics();
     this.setupDarkness();
+    this.setupFog();
     this.setupDust();
 
     this.fitCamera();
@@ -252,11 +319,11 @@ export class DungeonScene extends Phaser.Scene {
 
     const add = (frame: string, x: number, y: number, depth: number = D.wall) => {
       const img = this.add.image(x * TILE, y * TILE, 'dungeon', frame).setOrigin(0, 0).setDepth(depth);
-      this.mapLayer.add(img);
+      this.place(img);
       return img;
     };
     const shade = this.add.graphics().setDepth(D.floorShade);
-    this.mapLayer.add(shade);
+    this.place(shade);
 
     const decorAt = new Map(a.decor.map((d) => [`${d.pos.x},${d.pos.y}`, d.kind]));
 
@@ -297,7 +364,7 @@ export class DungeonScene extends Phaser.Scene {
         }
         // Solid wall mass: dark fill + light stripes along any edge that touches the room.
         const r = this.add.rectangle(x * TILE, y * TILE, TILE, TILE, 0x1c1719).setOrigin(0, 0).setDepth(D.wall);
-        this.mapLayer.add(r);
+        this.place(r);
         const left = !isMass(x - 1, y) && inB(x - 1, y) && !isCornerFront(x - 1, y);
         const right = !isMass(x + 1, y) && inB(x + 1, y) && !isCornerFront(x + 1, y);
         const faceBelow = isFace(x, y + 1);
@@ -313,12 +380,14 @@ export class DungeonScene extends Phaser.Scene {
     }
 
     // Door: arched frame + leaf, centred on the door tile, with a warm spill of light.
-    if (a.door) {
+    // Doors in a side or bottom wall get a portcullis over a stairway instead.
+    if (a.door && !isFloor(a.door.x, a.door.y + 1)) this.drawSideDoor(a.door);
+    else if (a.door) {
       const dx = (a.door.x + 0.5) * TILE;
       const dy = (a.door.y + 1) * TILE;
       const leaf = this.add.image(dx, dy, 'dungeon', 'doors_leaf_closed').setOrigin(0.5, 1).setDepth(D.wallDecor).setName('door-leaf');
       const top = this.add.image(dx, dy - 32, 'dungeon', 'doors_frame_top').setOrigin(0.5, 1).setDepth(D.wallDecor);
-      this.mapLayer.add([leaf, top]);
+      this.place([leaf, top]);
     }
 
     // Wall decor.
@@ -327,10 +396,10 @@ export class DungeonScene extends Phaser.Scene {
       if (d.kind === 'pillar') {
         const sh = this.add.ellipse((x + 0.6) * TILE, (y + 1) * TILE - 2, 18, 7, 0x000000, 0.4).setDepth(D.floorShade);
         const img = this.add.image(x * TILE, (y + 1) * TILE, 'dungeon', 'column').setOrigin(0, 1).setDepth(D.unit + y + 0.6);
-        this.mapLayer.add([sh, img]);
+        this.place([sh, img]);
       } else if (d.kind === 'spikes') {
         const s = this.add.sprite(x * TILE, y * TILE, 'dungeon', 'floor_spikes_anim_f0').setOrigin(0, 0).setDepth(D.floor + 0.5).play('spikes');
-        this.mapLayer.add(s);
+        this.place(s);
       } else if (d.kind === 'banner') {
         if (isFace(x, y)) add(['wall_banner_red', 'wall_banner_blue', 'wall_banner_green', 'wall_banner_yellow'][(x + y) % 2 ? 0 : 1], x, y, D.wallDecor);
         else add('wall_banner_red', x, y + 1, D.wallDecor);
@@ -338,24 +407,22 @@ export class DungeonScene extends Phaser.Scene {
         add('wall_fountain_top_1', x, y - 1, D.cap + 0.1);
         const m = this.add.sprite(x * TILE, y * TILE, 'dungeon', 'wall_fountain_mid_red_anim_f0').setOrigin(0, 0).setDepth(D.wallDecor).play('fountain-red');
         const b = this.add.sprite(x * TILE, (y + 1) * TILE, 'dungeon', 'wall_fountain_basin_red_anim_f0').setOrigin(0, 0).setDepth(D.floor + 0.5).play('basin-red');
-        this.mapLayer.add([m, b]);
+        this.place([m, b]);
         this.addLight((x + 0.5) * TILE, (y + 1.2) * TILE, 2.2, 0.55, 0.15, 0xff5030, 0.18);
       }
     });
 
     // Wall torches along the top face, skipping door/banners/fountains.
     const topY = a.rows.findIndex((_, yy) => isFace(1, yy));
-    if (topY >= 0) {
+    if (a.torches?.length) {
+      a.torches.forEach((p) => this.wallTorch(p.x, p.y));
+    } else if (topY >= 0 && !this.large) {
       for (let x = 3; x < W - 2; x += 5) {
         let tx = x;
         const blocked = (xx: number) => !isFace(xx, topY) || decorAt.has(`${xx},${topY}`) || (a.door && Math.abs(a.door.x - xx) <= 1);
         if (blocked(tx)) tx = [x + 1, x - 1, x + 2].find((xx) => !blocked(xx)) ?? -1;
         if (tx < 0) continue;
-        const t = this.add.sprite((tx + 0.5) * TILE, topY * TILE + 13, 'torch', 'torch_f0').setOrigin(0.5, 1).setDepth(D.wallDecor + 0.2);
-        t.play({ key: 'torch', randomFrame: true });
-        this.mapLayer.add(t);
-        this.addLight((tx + 0.5) * TILE, topY * TILE + 6, 4.2, 0.85, 0.5, 0xff9a3c, 0.22);
-        this.emitEmbers((tx + 0.5) * TILE, topY * TILE + 3);
+        this.wallTorch(tx, topY);
       }
     }
 
@@ -363,9 +430,195 @@ export class DungeonScene extends Phaser.Scene {
       const sh = this.add.ellipse((c.x + 0.5) * TILE, (c.y + 1) * TILE - 2, 14, 4, 0x000000, 0.35).setDepth(D.floorShade);
       const img = this.add.sprite(c.x * TILE, c.y * TILE, 'dungeon', 'chest_full_open_anim_f0').setOrigin(0, 0).setDepth(D.unit + c.y - 0.1);
       img.setName(`chest-${c.x}-${c.y}`);
-      this.mapLayer.add([sh, img]);
+      this.place([sh, img]);
       this.addLight((c.x + 0.5) * TILE, (c.y + 0.5) * TILE, 1.4, 0.35, 0.1, AMBER, 0.12);
     });
+
+    this.drawProps(rand);
+  }
+
+  /** Static pieces go into the one-off bake; anything animated, named or y-sorted stays live. */
+  private place(objs: Phaser.GameObjects.GameObject | Phaser.GameObjects.GameObject[]) {
+    for (const o of Array.isArray(objs) ? objs : [objs]) {
+      const depth = (o as unknown as { depth: number }).depth ?? 0;
+      const live = o instanceof Phaser.GameObjects.Sprite || !!o.name || depth >= D.unit;
+      if (live) this.mapLayer.add(o);
+      else this.statics.push(o);
+    }
+  }
+
+  /**
+   * Draw the collected static pieces into two RenderTextures (floor/walls below, banners/caps above
+   * the live wall decor such as torches and the door leaf), then drop the source objects.
+   */
+  private bakeStatics() {
+    const { width: W, height: H } = this.arena;
+    const w = W * TILE;
+    const h = (H + TOP_PAD) * TILE;
+    const depthOf = (o: Phaser.GameObjects.GameObject) => (o as unknown as { depth: number }).depth ?? 0;
+    const ordered = this.statics.map((o, i) => ({ o, i, d: depthOf(o) })).sort((p, q) => p.d - q.d || p.i - q.i);
+    const bake = (rt: Phaser.GameObjects.RenderTexture | undefined, depth: number, list: Phaser.GameObjects.GameObject[]) => {
+      const r = rt ?? this.add.renderTexture(0, 0, w, h).setOrigin(0, 0);
+      r.resize(w, h);
+      r.setPosition(0, -TOP_PAD * TILE).setDepth(depth);
+      r.clear();
+      if (list.length) r.draw(list, 0, TOP_PAD * TILE);
+      r.render();
+      return r;
+    };
+    this.staticRT = bake(this.staticRT, D.floor, ordered.filter((e) => e.d < D.wallDecor).map((e) => e.o));
+    this.staticTopRT = bake(this.staticTopRT, D.cap, ordered.filter((e) => e.d >= D.wallDecor).map((e) => e.o));
+    this.statics.forEach((o) => o.destroy());
+    this.statics = [];
+  }
+
+  private wallTorch(x: number, y: number) {
+    const t = this.add.sprite((x + 0.5) * TILE, y * TILE + 13, 'torch', 'torch_f0').setOrigin(0.5, 1).setDepth(D.wallDecor + 0.2);
+    t.play({ key: 'torch', randomFrame: true });
+    this.mapLayer.add(t);
+    // warm splash on the wall face, light pooled on the floor in front
+    const glowWall = this.add.image((x + 0.5) * TILE, y * TILE + 6, 'light').setDepth(D.wallDecor + 0.1).setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(0xff8a2a).setAlpha(0.22).setScale(0.22);
+    this.mapLayer.add(glowWall);
+    this.addLight((x + 0.5) * TILE, y * TILE + 14, 4.4, 0.88, 0.5, 0xff9a3c, 0.2);
+    this.emitEmbers((x + 0.5) * TILE, y * TILE + 3);
+  }
+
+  /** Portcullis over a stairway, for exits in a side or bottom wall. */
+  private drawSideDoor(d: { x: number; y: number }) {
+    const x = d.x * TILE;
+    const y = d.y * TILE;
+    const base = this.add.graphics().setDepth(D.wallDecor);
+    base.fillStyle(0x07040b, 1).fillRect(x, y, TILE, TILE);
+    this.statics.push(base);
+    this.statics.push(this.add.image(x, y, 'dungeon', 'floor_stairs').setOrigin(0, 0).setDepth(D.wallDecor + 0.1));
+    const frame = this.add.graphics().setDepth(D.wallDecor + 0.2);
+    frame.lineStyle(1, 0x8a6a3a, 1).strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
+    frame.lineStyle(1, 0x2a1a10, 1).strokeRect(x + 1.5, y + 1.5, TILE - 3, TILE - 3);
+    this.statics.push(frame);
+    const bars = this.add.graphics().setDepth(D.wallDecor + 0.3).setName('door-bars');
+    bars.fillStyle(0x1b1416, 1);
+    for (let i = 0; i < 4; i++) bars.fillRect(x + 2 + i * 4, y + 1, 2, TILE - 2);
+    bars.fillRect(x + 1, y + 4, TILE - 2, 1).fillRect(x + 1, y + 10, TILE - 2, 1);
+    bars.fillStyle(0x6e6068, 1);
+    for (let i = 0; i < 4; i++) bars.fillRect(x + 2 + i * 4, y + 1, 1, TILE - 2);
+    this.mapLayer.add(bars);
+  }
+
+  /** Contract A props: crates, bones, rubble, pits, gold, lore stones, entrance stairs. */
+  private drawProps(rand: () => number) {
+    const a = this.arena;
+    const at = (p: Pos) => ({ x: p.x * TILE, y: p.y * TILE });
+    const floorImg = (frame: string, p: Pos, depth: number, texture = 'dungeon') =>
+      this.statics.push(this.add.image(p.x * TILE, p.y * TILE, texture, frame).setOrigin(0, 0).setDepth(depth));
+
+    if (a.entrance) {
+      floorImg('floor_stairs', a.entrance, D.floor + 0.3);
+      const e = at(a.entrance);
+      this.addLight(e.x + TILE / 2, e.y + TILE / 2, 1.6, 0.4, 0.1, 0x9be7ff, 0.1);
+    }
+    a.pits?.forEach((p) => {
+      floorImg('hole', p, D.floor + 0.3);
+      const g = this.add.graphics().setDepth(D.floor + 0.4);
+      g.fillStyle(0x000000, 0.35).fillRect(p.x * TILE + 3, p.y * TILE + 3, TILE - 6, TILE - 6);
+      this.statics.push(g);
+    });
+    a.rubble?.forEach((p) => floorImg(`rubble_${Math.floor(rand() * 3)}`, p, D.floor + 0.35, 'clutter'));
+    a.bones?.forEach((p) => {
+      floorImg(`bones_${Math.floor(rand() * 2)}`, p, D.floor + 0.35, 'clutter');
+      if (rand() < 0.7) {
+        const sk = this.add.image(p.x * TILE + 2 + Math.round(rand() * 4), p.y * TILE - 2 + Math.round(rand() * 3), 'dungeon', 'skull')
+          .setOrigin(0, 0).setDepth(D.floor + 0.4).setFlipX(rand() < 0.5);
+        this.statics.push(sk);
+      }
+    });
+    a.crates?.forEach((p) => {
+      this.statics.push(this.add.ellipse((p.x + 0.5) * TILE, (p.y + 1) * TILE - 2, 15, 5, 0x000000, 0.4).setDepth(D.floorShade));
+      const img = this.add.image(p.x * TILE, (p.y + 1) * TILE, 'dungeon', 'crate').setOrigin(0, 1).setDepth(D.unit + p.y + 0.5);
+      this.mapLayer.add(img);
+    });
+    a.gold?.forEach((p) => {
+      const c = at(p);
+      const pile = this.add.container(c.x + TILE / 2, c.y + TILE - 3).setDepth(D.unit + p.y - 0.2).setName(`gold-${p.x}-${p.y}`);
+      const sh = this.add.ellipse(0, 1, 12, 4, 0x000000, 0.4);
+      const coins = [[-3, 0], [3, 0], [0, -3], [-1, 1]].map(([dx, dy], i) =>
+        this.add.sprite(dx, dy, 'dungeon', 'coin_anim_f0').setOrigin(0.5, 1).play({ key: 'coin', randomFrame: true, delay: i * 90 }));
+      pile.add([sh, ...coins]);
+      this.mapLayer.add(pile);
+      const l = this.addLight(c.x + TILE / 2, c.y + TILE / 2, 1.2, 0.35, 0.3, AMBER, 0.16);
+      pile.setData('light', l);
+      if (!reducedMotion()) {
+        this.timers.push(this.time.addEvent({
+          delay: 1400 + Math.floor(rand() * 900), loop: true,
+          callback: () => { if (pile.active && this.tileVisible(p)) this.sparkle(c.x + TILE / 2, c.y + TILE - 2, [0xfff3a0, 0xffd27a], 2); },
+        }));
+      }
+    });
+    a.lore?.forEach(({ pos: p }) => {
+      const c = at(p);
+      this.statics.push(this.add.ellipse(c.x + TILE / 2, c.y + TILE - 1, 15, 5, 0x000000, 0.45).setDepth(D.floorShade));
+      const slab = this.add.image(c.x + TILE / 2, c.y + TILE + 1, 'runestone', 'slab').setOrigin(0.5, 1).setDepth(D.unit + p.y + 0.5);
+      const runes = this.add.image(slab.x, slab.y, 'runestone', 'runes').setOrigin(0.5, 1).setDepth(D.unit + p.y + 0.55)
+        .setTint(RUNE_VIOLET).setBlendMode(Phaser.BlendModes.ADD).setName(`lore-${p.x}-${p.y}`);
+      const halo = this.add.image(slab.x, slab.y - 11, 'light').setDepth(D.glow).setBlendMode(Phaser.BlendModes.ADD).setTint(RUNE_VIOLET).setAlpha(0.3).setScale(0.32);
+      this.mapLayer.add([slab, runes]);
+      this.fxLayer.push(halo);
+      runes.setData('halo', halo);
+      const l = this.addLight(slab.x, slab.y - 8, 2.2, 0.55, 0.05);
+      runes.setData('light', l);
+      if (!reducedMotion()) {
+        this.tweens.add({ targets: runes, alpha: { from: 1, to: 0.35 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.floor(rand() * 600) });
+        this.tweens.add({ targets: halo, alpha: { from: 0.34, to: 0.12 }, scale: { from: 0.34, to: 0.28 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        const motes = this.add.particles(slab.x, slab.y - 10, 'fx', {
+          frame: 'dot', lifespan: { min: 900, max: 1600 }, frequency: 260, speedY: { min: -10, max: -4 }, speedX: { min: -4, max: 4 },
+          alpha: { start: 0.9, end: 0 }, tint: [RUNE_VIOLET, 0xe2d8ff], blendMode: 'ADD',
+          emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(-5, -6, 10, 10) as unknown as Phaser.Types.GameObjects.Particles.RandomZoneSource },
+        }).setDepth(D.dust);
+        this.fxLayer.push(motes);
+        runes.setData('motes', motes);
+      }
+    });
+  }
+
+  /** Gold, chest or lore stone at `pos` was taken/read: clear its highlight with a sparkle. */
+  pickup(pos: Pos) {
+    const x = (pos.x + 0.5) * TILE;
+    const y = (pos.y + 0.5) * TILE;
+    const pile = this.mapLayer.getByName(`gold-${pos.x}-${pos.y}`) as Phaser.GameObjects.Container | null;
+    if (pile) {
+      this.dropLight(pile.getData('light') as Light | undefined);
+      this.sparkle(x, y, [0xfff3a0, 0xffd27a, 0xffffff], 16);
+      this.sparks.setParticleTint(AMBER);
+      this.sparks.explode(10, x, y);
+      this.tweens.add({ targets: pile, y: pile.y - 8, alpha: 0, scale: 1.3, duration: 380, ease: 'Cubic.easeOut', onComplete: () => pile.destroy() });
+      return;
+    }
+    const runes = this.mapLayer.getByName(`lore-${pos.x}-${pos.y}`) as Phaser.GameObjects.Image | null;
+    if (runes) {
+      if (runes.getData('read')) return;
+      runes.setData('read', true);
+      this.tweens.killTweensOf(runes);
+      const halo = runes.getData('halo') as Phaser.GameObjects.Image | undefined;
+      if (halo) this.tweens.killTweensOf(halo);
+      const motes = runes.getData('motes') as Phaser.GameObjects.Particles.ParticleEmitter | undefined;
+      motes?.setData('stopped', true).stop();
+      // flare bright, then settle to a faint, steady "already read" glow
+      runes.setAlpha(1).setTint(0xffffff);
+      this.tweens.add({ targets: runes, alpha: 0.22, duration: 900, ease: 'Cubic.easeOut', onComplete: () => runes.setTint(RUNE_VIOLET) });
+      if (halo) this.tweens.add({ targets: halo, scale: 0.7, alpha: 0, duration: 800, ease: 'Cubic.easeOut' });
+      this.sparkle(runes.x, runes.y - 10, [RUNE_VIOLET, 0xe2d8ff, 0xffffff], 22);
+      const l = runes.getData('light') as Light | undefined;
+      if (l) this.tweens.add({ targets: l, radius: 1.2, strength: 0.25, duration: 900 });
+      return;
+    }
+    if (this.arena?.chests.some((c) => c.x === pos.x && c.y === pos.y)) this.openChest(pos);
+    else this.sparkle(x, y, [0xfff3a0, 0xffd27a], 10);
+  }
+
+  private dropLight(l?: Light) {
+    if (!l) return;
+    l.glow?.destroy();
+    this.torchLights = this.torchLights.filter((o) => o !== l);
   }
 
   /** Does this mass cell draw a side stripe? (cells next to the room on the left or right) */
@@ -412,13 +665,19 @@ export class DungeonScene extends Phaser.Scene {
     const stamp = (x: number, y: number, radiusTiles: number, alpha: number) => {
       rt.stamp('light', undefined, x - ox, y - oy, { scale: (radiusTiles * TILE * 2) / 128, alpha, blendMode: Phaser.BlendModes.ERASE });
     };
+    // Large levels: skip lights (and their glows) well outside the view.
+    const v = this.cameras.main.worldView;
+    const off = (x: number, y: number, r: number) => this.large && (x + r < v.x || x - r > v.right || y + r < v.y || y - r > v.bottom);
     for (const l of this.torchLights) {
+      const offscreen = off(l.x, l.y, l.radius * TILE);
+      if (l.glow && l.glow.visible === offscreen) l.glow.setVisible(!offscreen);
+      if (offscreen) continue;
       const f = 1 - l.flicker * 0.12 * (Math.sin(t * 9 + l.phase) * 0.5 + Math.sin(t * 23 + l.phase * 2) * 0.3 + Math.sin(t * 3.7 + l.phase) * 0.2 + 0.5);
       stamp(l.x, l.y, l.radius * f, l.strength);
       if (l.glow) l.glow.setScale((l.radius * TILE * 1.6 * f) / 128).setAlpha((l.glowAlpha ?? 0.2) * (0.8 + 0.2 * f));
     }
     this.units.forEach((u, id) => {
-      if (u.view.dead) return;
+      if (u.view.dead || !u.container.visible) return;
       const ux = u.container.x;
       const uy = u.container.y - 8;
       if (u.view.side === 'hero') {
@@ -438,7 +697,7 @@ export class DungeonScene extends Phaser.Scene {
     if (reducedMotion()) return;
     const { width: W, height: H } = this.arena;
     this.dust = this.add.particles(0, 0, 'fx', {
-      frame: 'dot', lifespan: { min: 4000, max: 8000 }, frequency: 180, quantity: 1,
+      frame: 'dot', lifespan: { min: 4000, max: 8000 }, frequency: this.mode === 'combat' ? 420 : this.large ? 70 : 180, quantity: 1,
       speedX: { min: -3, max: 3 }, speedY: { min: -5, max: -1 },
       alpha: { values: [0, 0.55, 0.4, 0] } as unknown as number, tint: [0xece3d0, 0xffd27a, 0xbfa8ff],
       emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(TILE, TILE, (W - 2) * TILE, (H - 2) * TILE) as unknown as Phaser.Types.GameObjects.Particles.RandomZoneSource },
@@ -458,7 +717,10 @@ export class DungeonScene extends Phaser.Scene {
 
   private fitCamera() {
     if (!this.arena) return;
+    if (this.large) return this.fitLargeCamera();
     const cam = this.cameras.main;
+    cam.stopFollow();
+    cam.removeBounds();
     const vw = this.scale.width;
     const vh = this.scale.height;
     const nice = this.roomBounds();
@@ -482,9 +744,79 @@ export class DungeonScene extends Phaser.Scene {
     cam.roundPixels = true;
   }
 
+  /** Big levels: a readable fixed zoom (about 24 tiles across) and a lerped follow clamped to the map. */
+  private fitLargeCamera() {
+    const cam = this.cameras.main;
+    const vw = this.scale.width;
+    const vh = this.scale.height;
+    const across = (z: number) => vw / (z * TILE);
+    let z = Math.max(1, Math.round((vw / (24 * TILE)) * 2) / 2);
+    while (across(z) > 26.5) z += 0.5;
+    while (across(z) < 21.5 && z > 1) z -= 0.5;
+    this.baseZoom = z;
+    const { width: W, height: H } = this.arena;
+    // World rect to scroll within; padded out (centred) wherever the map is smaller than the view.
+    let bx = 0;
+    let by = (this.arena.door && this.arena.door.y === 0 ? -2 : -1) * TILE;
+    let bw = W * TILE;
+    let bh = H * TILE - by;
+    const viewW = vw / z;
+    const viewH = vh / z;
+    if (bw < viewW) { bx -= (viewW - bw) / 2; bw = viewW; }
+    if (bh < viewH) { by -= (viewH - bh) / 2; bh = viewH; }
+    this.bounds = { x: bx, y: by, w: bw, h: bh };
+    cam.setZoom(z);
+    cam.setBounds(Math.floor(bx), Math.floor(by), Math.ceil(bw), Math.ceil(bh));
+    cam.roundPixels = true;
+    cam.startFollow(this.camTarget, true, 0.1, 0.1);
+    if (!this.camTarget.x && !this.camTarget.y) this.aimCamera();
+    cam.centerOn(this.camTarget.x, this.camTarget.y);
+    this.baseCenter = { x: this.camTarget.x, y: this.camTarget.y };
+  }
+
+  /** Where the camera wants to be this frame (large levels only). */
+  private aimCamera() {
+    const a = this.arena;
+    const now = this.time.now;
+    const pos = (id: string | null) => {
+      const u = id ? this.units.get(id) : undefined;
+      return u && !u.container.getData('dying') ? { x: u.container.x, y: u.container.y - 8 } : null;
+    };
+    let p: { x: number; y: number } | null = null;
+    if (this.attackFocus && this.attackFocus.until > now) {
+      const pa = pos(this.attackFocus.a);
+      const pt = pos(this.attackFocus.t);
+      if (pa && pt) p = { x: (pa.x + pt.x) / 2, y: (pa.y + pt.y) / 2 };
+    }
+    p ??= pos(this.focusId) ?? pos(this.followId) ?? pos(this.activeId);
+    if (!p) {
+      const spawns = a.heroSpawns.length ? a.heroSpawns : [a.entrance ?? { x: a.width / 2, y: a.height / 2 }];
+      p = {
+        x: (spawns.reduce((s, q) => s + q.x, 0) / spawns.length + 0.5) * TILE,
+        y: (spawns.reduce((s, q) => s + q.y, 0) / spawns.length + 0.5) * TILE,
+      };
+    }
+    this.camTarget.x = p.x;
+    this.camTarget.y = p.y;
+  }
+
+  /** Camera tracks this unit on large levels (leader in explore, active unit in combat). */
+  follow(id: string | null) {
+    this.followId = id;
+    if (this.large && this.snapCamera) {
+      this.snapCamera = false;
+      this.aimCamera();
+      this.cameras.main.centerOn(this.camTarget.x, this.camTarget.y);
+    }
+  }
+
   /** Gently drift the camera toward a unit (enemy turns). `null` returns to the full-room framing. */
   focusUnit(id: string | null) {
     if (!this.arena) return;
+    if (this.large) {
+      this.focusId = id;
+      return;
+    }
     const cam = this.cameras.main;
     const u = id ? this.units.get(id) : undefined;
     if (!u || reducedMotion()) {
@@ -506,12 +838,174 @@ export class DungeonScene extends Phaser.Scene {
     cam.zoomTo(z, 500, 'Sine.easeInOut', true);
   }
 
+  // ---------- fog of war ----------
+
+  private setupFog() {
+    const { width: W, height: H } = this.arena;
+    this.fogOn = this.large;
+    this.seen = new Uint8Array(W * H);
+    this.fogAlpha = new Float32Array(W * (H + TOP_PAD)).fill(1);
+    this.fogTarget = new Float32Array(W * (H + TOP_PAD)).fill(1);
+    this.fogVersion++;
+    this.fogImg?.destroy();
+    this.fogImg = undefined;
+    if (this.textures.exists('fog')) this.textures.remove('fog');
+    this.fogTex = undefined;
+    const rows = this.arena.rows;
+    this.fov = new FOV.PreciseShadowcasting((x, y) => x >= 0 && y >= 0 && x < W && y < H && !OPAQUE.has(rows[y][x]), { topology: 8 });
+    if (!this.fogOn) return;
+    // One texel per tile, scaled up with bilinear filtering: soft, smoky edges at no per-tile cost.
+    const tex = this.textures.createCanvas('fog', W, H + TOP_PAD);
+    if (!tex) return;
+    tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.fogTex = tex;
+    this.fogImg = this.add.image(0, -TOP_PAD * TILE, 'fog').setOrigin(0, 0).setScale(TILE).setDepth(D.fog);
+    this.paintFog();
+    this.snapCamera = true;
+  }
+
+  private fogTarget = new Float32Array(0);
+
+  /** Recompute what the party sees. Tiles leave "visible" for "explored" once out of sight. */
+  revealAround(positions: Pos[], radius: number) {
+    if (!this.fogOn || !this.fov) return;
+    const { width: W, height: H, rows } = this.arena;
+    const R = Math.max(1, Math.round(radius));
+    const dist = new Float32Array(W * H).fill(Infinity);
+    for (let i = 0; i < this.seen.length; i++) if (this.seen[i] === 2) this.seen[i] = 1;
+    const wall = (x: number, y: number) => OPAQUE.has(rows[y]?.[x] ?? '#');
+    positions.forEach((p) => {
+      this.fov!.compute(p.x, p.y, R, (x, y) => {
+        if (x < 0 || y < 0 || x >= W || y >= H) return;
+        const i = y * W + x;
+        this.seen[i] = 2;
+        dist[i] = Math.min(dist[i], Math.hypot(x - p.x, y - p.y));
+        // the wall cap drawn on the tile above a lit wall face comes along with it
+        if (wall(x, y) && y > 0 && wall(x, y - 1)) {
+          this.seen[i - W] = 2;
+          dist[i - W] = Math.min(dist[i - W], dist[i]);
+        }
+      });
+    });
+    for (let y = -TOP_PAD; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const src = Math.max(0, y) * W + x;
+        const st = this.seen[src];
+        // edge of vision fades a little before the hard "explored" dim
+        const edge = st === 2 ? Phaser.Math.Clamp((dist[src] - (R - 2.5)) / 2.5, 0, 1) * 0.3 : 0;
+        this.fogTarget[(y + TOP_PAD) * W + x] = st === 2 ? edge : st === 1 ? 0.6 : 1;
+      }
+    }
+    this.fogDirty = true;
+    this.fogVersion++;
+    this.applyUnitVisibility();
+  }
+
+  private tileVisible(p: Pos) {
+    if (!this.fogOn) return true;
+    const { width: W, height: H } = this.arena;
+    if (p.x < 0 || p.y < 0 || p.x >= W || p.y >= H) return false;
+    return this.seen[p.y * W + p.x] === 2;
+  }
+
+  /** Ease fog texels toward their targets; repaint only while something is changing. */
+  private stepFog(delta: number) {
+    if (!this.fogOn || !this.fogDirty) return;
+    const k = reducedMotion() ? 1 : Math.min(1, delta / 140);
+    let moving = false;
+    for (let i = 0; i < this.fogAlpha.length; i++) {
+      const d = this.fogTarget[i] - this.fogAlpha[i];
+      if (Math.abs(d) < 0.01) { this.fogAlpha[i] = this.fogTarget[i]; continue; }
+      this.fogAlpha[i] += d * k;
+      moving = true;
+    }
+    this.paintFog();
+    this.fogDirty = moving;
+  }
+
+  private paintFog() {
+    const tex = this.fogTex;
+    if (!tex) return;
+    const ctx = tex.getContext();
+    const w = tex.width;
+    const h = tex.height;
+    const img = ctx.createImageData(w, h);
+    const px = img.data;
+    for (let i = 0; i < w * h; i++) {
+      px[i * 4] = 4;
+      px[i * 4 + 1] = 2;
+      px[i * 4 + 2] = 9;
+      px[i * 4 + 3] = Math.round(this.fogAlpha[i] * 255);
+    }
+    ctx.putImageData(img, 0, 0);
+    tex.refresh();
+  }
+
+  /** Monsters on tiles the party can't currently see are hidden (dying ones finish their animation). */
+  private applyUnitVisibility() {
+    this.units.forEach((u) => {
+      if (u.view.side === 'hero') return;
+      const tile = { x: Math.floor(u.container.x / TILE), y: Math.floor((u.container.y - 1) / TILE) };
+      const vis = !this.fogOn || this.tileVisible(tile) || this.tileVisible(u.view.pos) || !!u.container.getData('dying');
+      if (u.container.visible !== vis) {
+        u.container.setVisible(vis);
+        u.hud.setVisible(vis);
+      }
+    });
+  }
+
+  // ---------- mode & minimap ----------
+
+  /** Explore: drifting dust, open vignette. Combat: dust settles, vignette tightens. */
+  setMode(mode: 'explore' | 'combat') {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    const v = this.vignette;
+    const combat = mode === 'combat';
+    if (v) {
+      this.tweens.killTweensOf(v);
+      this.tweens.add({ targets: v, radius: combat ? 0.74 : 0.9, strength: combat ? 0.62 : 0.45, duration: reducedMotion() ? 0 : 600, ease: 'Sine.easeInOut' });
+    }
+    if (this.dust) this.dust.frequency = combat ? 420 : this.large ? 70 : 180;
+  }
+
+  private minimapData(): MinimapData | null {
+    const a = this.arena;
+    if (!a) return null;
+    const cam = this.cameras.main;
+    const v = cam.worldView;
+    const heroes: MinimapData['heroes'] = [];
+    const monsters: MinimapData['monsters'] = [];
+    this.units.forEach((u, id) => {
+      if (u.view.dead) return;
+      const p = { x: u.container.x / TILE - 0.5, y: u.container.y / TILE - 1 };
+      if (u.view.side === 'hero') heroes.push({ ...p, leader: id === this.followId });
+      else if (u.container.visible) monsters.push(p);
+    });
+    const living = [...this.units.values()].filter((u) => u.view.side === 'monster' && !u.view.dead);
+    const lairs = (a.lairs ?? [])
+      .filter((l) => l.spawns.some((s) => this.seen[s.y * a.width + s.x] > 0))
+      .map((l) => ({
+        x: l.spawns.reduce((s, q) => s + q.x, 0) / l.spawns.length,
+        y: l.spawns.reduce((s, q) => s + q.y, 0) / l.spawns.length,
+      }))
+      .filter((c) => living.some((u) => Math.abs(u.view.pos.x - c.x) <= 5 && Math.abs(u.view.pos.y - c.y) <= 5));
+    return {
+      enabled: this.large, arenaVersion: this.arenaVersion, fogVersion: this.fogVersion,
+      width: a.width, height: a.height, rows: a.rows, seen: this.seen, door: a.door,
+      heroes, monsters, lairs,
+      view: { x: v.x / TILE, y: v.y / TILE, w: v.width / TILE, h: v.height / TILE },
+    };
+  }
+
   private titleCard(index: number, name: string) {
-    const cx = this.baseCenter.x;
-    const cy = this.baseCenter.y - TILE * 1.5;
+    // Large levels scroll, so the card is pinned to the screen (scroll factor 0, zoomed about the centre).
+    const pinned = this.large;
+    const cx = pinned ? this.scale.width / 2 : this.baseCenter.x;
+    const cy = pinned ? this.scale.height / 2 - TILE * 2.5 : this.baseCenter.y - TILE * 1.5;
     const res = Math.max(2, Math.ceil(this.baseZoom * 2));
     const band = this.add.graphics().setDepth(D.title);
-    const bw = this.arena.width * TILE;
+    const bw = pinned ? Math.min(this.scale.width / this.baseZoom, 26 * TILE) : this.arena.width * TILE;
     for (let i = 0; i < 6; i++) band.fillStyle(0x07040b, 0.12 + i * 0.1).fillRect(cx - bw / 2 + i * 10, cy - 15, bw - i * 20, 30);
     band.fillStyle(0xf2d48f, 0.5).fillRect(cx - 60, cy - 15, 120, 1).fillRect(cx - 60, cy + 14, 120, 1);
     const title = this.add.text(cx, cy, `${roman(index + 1)} \u00b7 ${name}`, {
@@ -519,7 +1013,7 @@ export class DungeonScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(D.title);
     title.setShadow(0, 1, '#000', 0, true, true);
     const parts = [band, title];
-    parts.forEach((p) => p.setAlpha(0));
+    parts.forEach((p) => p.setAlpha(0).setScrollFactor(pinned ? 0 : 1));
     this.tweens.add({ targets: parts, alpha: 1, duration: 350, delay: 250, ease: 'Sine.easeOut' });
     this.tweens.add({ targets: title, y: { from: cy + 4, to: cy }, duration: 450, delay: 250, ease: 'Back.easeOut' });
     this.tweens.add({ targets: parts, alpha: 0, duration: 450, delay: 1750, onComplete: () => parts.forEach((p) => p.destroy()) });
@@ -546,6 +1040,18 @@ export class DungeonScene extends Phaser.Scene {
     const y = d.y * TILE;
     const leaf = this.mapLayer.getByName('door-leaf') as Phaser.GameObjects.Image | null;
     leaf?.setFrame('doors_leaf_open');
+    const bars = this.mapLayer.getByName('door-bars') as Phaser.GameObjects.Graphics | null;
+    if (bars) {
+      const mask = this.add.graphics().setVisible(false).fillRect(d.x * TILE, d.y * TILE, TILE, TILE);
+      bars.setMask(mask.createGeometryMask());
+      this.tweens.add({ targets: bars, y: -TILE + 2, duration: reducedMotion() ? 0 : 900, ease: 'Sine.easeInOut' });
+      this.fxLayer.push(mask);
+    }
+    // the exit is the objective: make sure it is on the map once it opens
+    if (this.fogOn) {
+      this.seen[d.y * this.arena.width + d.x] ||= 1;
+      this.fogVersion++;
+    }
     const glow = this.add.image(x, y, 'light').setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD).setDepth(D.glow).setScale(0.2).setAlpha(0.9);
     this.tweens.add({ targets: glow, scale: 0.9, alpha: 0.35, duration: 700, ease: 'Cubic.easeOut' });
     this.fxLayer.push(glow);
@@ -588,6 +1094,7 @@ export class DungeonScene extends Phaser.Scene {
       }
     });
     this.refreshActive();
+    this.applyUnitVisibility();
   }
 
   private createUnit(v: UnitView): UnitSprite {
@@ -748,6 +1255,7 @@ export class DungeonScene extends Phaser.Scene {
     const t = this.units.get(targetId);
     if (!a || !t) return;
     this.lastAttacker = attackerId;
+    if (this.large && a !== t) this.attackFocus = { a: attackerId, t: targetId, until: this.time.now + 1100 };
     const ax = a.container.x;
     const ay = a.container.y - 8;
     if (a === t) {
@@ -1071,8 +1579,31 @@ export class DungeonScene extends Phaser.Scene {
     g.fillStyle(col, 0.08).fillRect(t.x * TILE + 1, t.y * TILE + 1, TILE - 2, TILE - 2);
   }
 
-  update(time: number) {
+  private lastCull = 0;
+
+  /** Pause particle emitters outside the camera view so big levels stay cheap. */
+  private cullFx(time: number) {
+    this.lastCull = time;
+    const v = this.cameras.main.worldView;
+    const m = 3 * TILE;
+    for (const o of this.fxLayer) {
+      if (!(o instanceof Phaser.GameObjects.Particles.ParticleEmitter) || o.getData('stopped')) continue;
+      const on = o.x > v.x - m && o.x < v.right + m && o.y > v.y - m && o.y < v.bottom + m;
+      if (on !== o.visible) {
+        o.setVisible(on);
+        if (on) o.resume(); else o.pause();
+      }
+    }
+  }
+
+  update(time: number, delta: number) {
     if (!this.arena) return;
+    if (this.large) {
+      if (time - this.lastCull > 200) this.cullFx(time);
+      this.aimCamera();
+      this.stepFog(delta);
+      if (this.fogOn) this.applyUnitVisibility();
+    }
     this.units.forEach((u) => {
       u.hud.setPosition(u.container.x + u.body.x, u.container.y);
       u.hud.setAlpha(u.container.getData('dying') ? 0 : 1);
