@@ -1478,7 +1478,7 @@ export class GameController {
       if (l.cleared) continue;
       for (const m of l.monsters) {
         if (have.has(m.c.id)) continue;
-        views.push({ id: m.c.id, spriteKey: m.c.spriteKey, side: 'monster', pos: { ...m.c.pos }, hp: m.c.hp, maxHp: m.c.maxHp, name: m.c.name, dead: false, conditions: [] });
+        views.push({ id: m.c.id, spriteKey: m.c.spriteKey, side: 'monster', pos: { ...m.c.pos }, hp: m.c.hp, maxHp: m.c.maxHp, name: m.c.name, dead: false, conditions: [], asleep: true });
       }
     }
     if (drop?.size) this.scene.setUnits(views.filter((v) => !drop.has(v.id)));

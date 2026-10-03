@@ -18,6 +18,8 @@ export interface UnitView {
   name: string;
   dead: boolean;
   conditions: string[];
+  /** a monster of a lair that hasn't woken: not part of the current fight, stays behind the fog */
+  asleep?: boolean;
 }
 
 interface UnitSprite {
@@ -661,7 +663,8 @@ export class DungeonScene extends Phaser.Scene {
     const oy = rt.y;
     rt.clear();
     // On large levels the fog already handles the unknown, so the lit world can breathe a little more.
-    rt.fill(0x06030b, this.large ? AMBIENT * 0.78 : AMBIENT);
+    const ambient = (this.large ? AMBIENT * 0.78 : AMBIENT) * (this.mode === 'combat' ? 0.7 : 1);
+    rt.fill(0x06030b, ambient);
     const t = time / 1000;
     const stamp = (x: number, y: number, radiusTiles: number, alpha: number) => {
       rt.stamp('light', undefined, x - ox, y - oy, { scale: (radiusTiles * TILE * 2) / 128, alpha, blendMode: Phaser.BlendModes.ERASE });
@@ -685,7 +688,9 @@ export class DungeonScene extends Phaser.Scene {
         const f = 1 - 0.06 * (Math.sin(t * 7 + ux) * 0.5 + 0.5);
         stamp(ux, uy, 5.2 * f, 0.85);
       } else {
-        stamp(ux, uy, 2.4, 0.6); // monsters stay readable, just moodier
+        // monsters stay readable; in a fight they're lit like the party so targets are always clear
+        if (this.mode === 'combat' && !u.view.asleep) stamp(ux, uy, 4.2, 0.8);
+        else stamp(ux, uy, 2.4, 0.6);
       }
       if (id === this.activeId) stamp(ux, uy, 2.4, 0.6);
     });
@@ -789,6 +794,8 @@ export class DungeonScene extends Phaser.Scene {
       const pt = pos(this.attackFocus.t);
       if (pa && pt) p = { x: (pa.x + pt.x) / 2, y: (pa.y + pt.y) / 2 };
     }
+    // Combat: centre on whoever is acting (monster or hero), shifted just enough that the whole fight stays in frame.
+    if (!p && this.mode === 'combat') p = this.fightAim(pos(this.focusId) ?? pos(this.activeId) ?? pos(this.followId));
     p ??= pos(this.focusId) ?? pos(this.followId) ?? pos(this.activeId);
     if (!p) {
       const spawns = a.heroSpawns.length ? a.heroSpawns : [a.entrance ?? { x: a.width / 2, y: a.height / 2 }];
@@ -799,6 +806,39 @@ export class DungeonScene extends Phaser.Scene {
     }
     this.camTarget.x = p.x;
     this.camTarget.y = p.y;
+  }
+
+  /** Combat framing: one stable zoom that fits the whole fight, centred on the actor as far as that box allows. */
+  private fightAim(actor: { x: number; y: number } | null): { x: number; y: number } | null {
+    const box = this.fightCenter(true);
+    if (!box || !actor) return box ?? actor;
+    const b = this.fightBox;
+    const cam = this.cameras.main;
+    const halfW = this.scale.width / cam.zoom / 2 - TILE * 1.5;
+    const halfH = this.scale.height / cam.zoom / 2 - TILE * 2;
+    const clamp = (v: number, lo: number, hi: number, half: number) => (hi - lo >= half * 2 ? (lo + hi) / 2 : Phaser.Math.Clamp(v, hi - half, lo + half));
+    return { x: clamp(actor.x, b.minX, b.maxX, halfW), y: clamp(actor.y, b.minY, b.maxY, halfH) };
+  }
+
+  private fightBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+  private fitZoom(need: number) {
+    const cam = this.cameras.main;
+    const want = Phaser.Math.Clamp(Math.floor(need * 4) / 4, 1.25, this.baseZoom);
+    if (Math.abs(cam.zoom - want) > 0.01 && !this.tweens.isTweening(cam)) cam.zoomTo(want, reducedMotion() ? 0 : 450, 'Sine.easeInOut', true);
+  }
+
+  /** Centre of the box around every living combatant; also widens the zoom so that box fits (combat only). */
+  private fightCenter(zoom = true): { x: number; y: number } | null {
+    const alive = [...this.units.values()].filter((u) => !u.view.dead && !u.view.asleep && !u.container.getData('dying'));
+    if (!alive.some((u) => u.view.side === 'monster')) return null;
+    const xs = alive.map((u) => u.container.x);
+    const ys = alive.map((u) => u.container.y - 8);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    this.fightBox = { minX, maxX, minY, maxY };
+    // fit the fight with ~2 tiles of margin, never closer than the explore zoom
+    if (zoom) this.fitZoom(Math.min(this.scale.width / (maxX - minX + TILE * 4), this.scale.height / (maxY - minY + TILE * 5)));
+    return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
   }
 
   /** Camera tracks this unit on large levels (leader in explore, active unit in combat). */
@@ -873,15 +913,26 @@ export class DungeonScene extends Phaser.Scene {
   private autoReveal() {
     if (!this.fogOn) return;
     const heroes = [...this.units.values()].filter((u) => u.view.side === 'hero' && !u.view.dead).map((u) => u.view.pos);
-    const key = heroes.map((p) => `${p.x},${p.y}`).sort().join('|');
-    if (heroes.length && key !== this.revealKey) this.revealAround(heroes, this.revealRadius);
+    const sources = this.mode === 'combat' ? [...heroes, ...this.combatFoes()] : heroes;
+    const key = `${this.mode}|` + sources.map((p) => `${p.x},${p.y}`).sort().join('|');
+    if (heroes.length && key !== this.revealKey) this.revealAround(sources, this.revealRadius);
+  }
+
+  /** Living enemies in the current fight (sleeping lairs are not pushed as combatants during combat). */
+  private combatFoes(): Pos[] {
+    return [...this.units.values()].filter((u) => u.view.side === 'monster' && !u.view.dead && !u.view.asleep).map((u) => u.view.pos);
   }
 
   /** Recompute what the party sees. Tiles leave "visible" for "explored" once out of sight. */
   revealAround(positions: Pos[], radius: number) {
     if (!this.fogOn || !this.fov) return;
     this.revealRadius = radius;
-    this.revealKey = positions.map((p) => `${p.x},${p.y}`).sort().join('|');
+    // In combat the battlefield is always in view: the enemies' surroundings are revealed too.
+    if (this.mode === 'combat') {
+      const have = new Set(positions.map((p) => `${p.x},${p.y}`));
+      positions = [...positions, ...this.combatFoes().filter((p) => !have.has(`${p.x},${p.y}`))];
+    }
+    this.revealKey = `${this.mode}|` + positions.map((p) => `${p.x},${p.y}`).sort().join('|');
     const { width: W, height: H, rows } = this.arena;
     const R = Math.max(1, Math.round(radius));
     const dist = new Float32Array(W * H).fill(Infinity);
@@ -966,7 +1017,7 @@ export class DungeonScene extends Phaser.Scene {
         return;
       }
       const tile = { x: Math.floor(u.container.x / TILE), y: Math.floor((u.container.y - 1) / TILE) };
-      const vis = !this.fogOn || this.tileVisible(tile) || this.tileVisible(u.view.pos) || !!u.container.getData('dying');
+      const vis = !this.fogOn || (this.mode === 'combat' && !u.view.asleep) || this.tileVisible(tile) || this.tileVisible(u.view.pos) || !!u.container.getData('dying');
       if (u.container.visible !== vis) {
         u.container.setVisible(vis);
         u.hud.setVisible(vis);
@@ -984,9 +1035,13 @@ export class DungeonScene extends Phaser.Scene {
     const combat = mode === 'combat';
     if (v) {
       this.tweens.killTweensOf(v);
-      this.tweens.add({ targets: v, radius: combat ? 0.74 : 0.9, strength: combat ? 0.62 : 0.45, duration: reducedMotion() ? 0 : 600, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: v, radius: combat ? 0.86 : 0.9, strength: combat ? 0.5 : 0.45, duration: reducedMotion() ? 0 : 600, ease: 'Sine.easeInOut' });
     }
     if (this.dust) this.dust.frequency = combat ? 420 : this.large ? 70 : 180;
+    this.revealKey = '';
+    this.autoReveal();
+    this.applyUnitVisibility();
+    if (!combat && this.large) this.cameras.main.zoomTo(this.baseZoom, reducedMotion() ? 0 : 450, 'Sine.easeInOut', true);
   }
 
   private minimapData(): MinimapData | null {
