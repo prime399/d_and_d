@@ -9,7 +9,7 @@ import {
 import type { Citation, GameContent, Monster, Room, Spell, SrdVersion } from './content/types';
 import { getArena, type ArenaMap } from './maps';
 import type { DungeonScene, UnitView } from './scenes/DungeonScene';
-import { audio } from './audio';
+import { audio, isTrack, levelTrack } from './audio';
 import type { DiceShow } from '@/components/DiceOverlay';
 import type { DmLookup, DmResponse } from '@/app/api/dm/route';
 
@@ -86,7 +86,7 @@ export interface UnitDisplay {
 
 export interface TurnBanner {
   text: string;
-  side: 'hero' | 'monster' | 'round';
+  side: 'hero' | 'monster' | 'round' | 'ambush';
   key: number;
 }
 
@@ -318,7 +318,7 @@ export class GameController {
     });
     this.syncUnits();
     this.enterExploreView();
-    audio.play(room.isBoss ? 'boss' : 'explore', index + 1);
+    this.playExploreMusic();
 
     this.say('system', `Level ${index + 1} of ${this.rooms.length}: ${room.name}${arena.title && arena.title !== room.name ? ` (${arena.title})` : ''}`);
     this.queueBeat([
@@ -576,8 +576,15 @@ export class GameController {
     // revived heroes need fresh sprites (their old ones played the death animation)
     if (downed.size) this.syncUnits(downed);
     this.syncUnits();
-    if (!this.rooms[this.view.roomIndex]?.isBoss) audio.play('explore', this.view.roomIndex + 1);
+    this.playExploreMusic();
     this.enterExploreView();
+  }
+
+  /** Explore music for the current level (explore-N); a valid Sanity room.music track wins only for non-level tracks. */
+  private playExploreMusic() {
+    const level = this.view.roomIndex + 1;
+    const m = this.view.room?.music;
+    audio.play(isTrack(m) && m.startsWith('explore-') ? m : levelTrack('explore', level));
   }
 
   private enterExploreView() {
@@ -800,13 +807,15 @@ export class GameController {
     this.scene?.clearOverlay();
     this.update({
       state, playMode: 'combat', units: unitsFrom(state), busy: true, isPlayerTurn: false, mode: { kind: 'move' },
-      interactable: null, activeId: null, turnBanner: { text: 'Ambush!', side: 'monster', key: this.seq++ },
+      interactable: null, activeId: null, turnBanner: { text: 'Ambush!', side: 'ambush', key: this.seq++ },
     });
     this.syncUnits();
     this.sceneX?.setMode?.('combat');
     audio.blip('ambush');
-    audio.play(this.rooms[this.view.roomIndex]?.isBoss ? 'boss' : 'combat', this.view.roomIndex + 1);
-    this.toast('Ambush!');
+    // the boss level's throne lair (its last lair) gets the boss sting, then the boss theme
+    const throne = this.lairs[this.lairs.length - 1];
+    if (this.view.room?.isBoss && throne && woken.includes(throne)) audio.play('boss-intro', { then: 'boss' });
+    else audio.play(levelTrack('combat', this.view.roomIndex + 1));
     const names = list.map((m) => m.c.name).join(', ');
     this.say('system', `Ambush! ${names} attack${list.length === 1 ? 's' : ''}.`);
     this.addCitations(state.citations, 'Initiative is rolled');

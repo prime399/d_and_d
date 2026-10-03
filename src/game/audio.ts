@@ -1,17 +1,20 @@
 // Music + SFX via plain HTMLAudio/WebAudio. Unlocked on the first user gesture (title screen click).
-export type Track = 'title' | 'explore' | 'combat' | 'boss' | 'victory';
+export type Level = 1 | 2 | 3 | 4 | 5;
+export type Track = 'title' | 'victory' | 'boss' | 'boss-intro' | `explore-${Level}` | `combat-${Level}`;
 
-/** explore/combat have one variant per level: explore-1..5.mp3, combat-1..5.mp3. */
-const VARIANTS = 5;
-function musicUrl(track: Track, variant = 1): string {
-  if (track === 'explore' || track === 'combat') return `/assets/music/${track}-${((Math.max(1, variant) - 1) % VARIANTS) + 1}.mp3`;
-  return `/assets/music/${track}.mp3`;
-}
+const LEVELS = [1, 2, 3, 4, 5] as const;
+export const TRACKS: readonly Track[] = ['title', 'victory', 'boss', 'boss-intro', ...LEVELS.map((n) => `explore-${n}` as const), ...LEVELS.map((n) => `combat-${n}` as const)];
+export const isTrack = (t: unknown): t is Track => typeof t === 'string' && (TRACKS as readonly string[]).includes(t);
+
+/** Per-level explore/combat track; levels past 5 wrap around. */
+export const levelTrack = (kind: 'explore' | 'combat', level: number): Track => `${kind}-${(((Math.max(1, level) - 1) % 5) + 1) as Level}`;
+
+const CROSSFADE_IN = 800;
+const CROSSFADE_OUT = 700;
 
 class AudioManager {
   private current: HTMLAudioElement | null = null;
   private currentTrack: Track | null = null;
-  private currentUrl: string | null = null;
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
   musicVolume = 0.35;
@@ -29,20 +32,39 @@ class AudioManager {
     }
   }
 
-  /** `variant` (1-based, usually the level number) picks the explore/combat track for that level. */
-  play(track: Track, variant = 1) {
-    const url = musicUrl(track, variant);
-    if (this.currentUrl === url) return;
-    this.currentUrl = url;
+  get track() {
+    return this.currentTrack;
+  }
+
+  /**
+   * Crossfades to `track` (loops). With `then`, the track plays once (a sting like boss-intro)
+   * and crossfades into `then` on loop when it ends. Re-requesting the playing track is a no-op.
+   */
+  play(track: Track, opts: { then?: Track } = {}) {
+    if (this.currentTrack === track) return;
     const prev = this.current;
-    const next = new Audio(url);
-    next.loop = true;
+    const next = new Audio(`/assets/music/${track}.mp3`);
+    next.loop = !opts.then;
     next.volume = 0;
     this.current = next;
     this.currentTrack = track;
+    if (opts.then) {
+      const then = opts.then;
+      // start the follow-up slightly before the sting ends so the crossfade overlaps
+      const onTime = () => {
+        if (this.current !== next) return next.removeEventListener('timeupdate', onTime);
+        if (next.duration && next.currentTime >= next.duration - CROSSFADE_OUT / 1000) {
+          next.removeEventListener('timeupdate', onTime);
+          this.play(then);
+        }
+      };
+      next.addEventListener('timeupdate', onTime);
+      next.addEventListener('ended', () => { if (this.current === next) this.play(then); }, { once: true });
+      next.addEventListener('error', () => { if (this.current === next) this.play(then); }, { once: true });
+    }
     void next.play().catch(() => {});
-    this.fade(next, () => this.musicVolume, 900);
-    if (prev) this.fade(prev, () => 0, 700, () => prev.pause());
+    this.fade(next, () => this.musicVolume, CROSSFADE_IN);
+    if (prev) this.fade(prev, () => 0, CROSSFADE_OUT, () => prev.pause());
   }
 
   /** Fades toward to(); re-evaluated each frame and forced to 0 while muted, so muting mid-fade sticks. */
