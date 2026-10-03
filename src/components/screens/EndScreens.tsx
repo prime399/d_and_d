@@ -53,10 +53,10 @@ export function RoomCleared({ ctrl, sinceKey }: { ctrl: GameController; sinceKey
   const cited = topRules(v, 6, sinceKey);
   const foes = v.state?.combatants.filter((c) => c.side === 'monster').length ?? 0;
   return (
-    <Modal label="Room cleared" className="w-full max-w-lg p-6 text-center">
+    <Modal label="Level cleared" className="w-full max-w-lg p-6 text-center">
       <div aria-hidden className="mx-auto -mt-1 mb-1 flex justify-center"><Sprite k="chest_full_open" scale={3} anim={false} /></div>
-      <p className="font-pixel text-[11px] tracking-[0.3em] text-emerald-300">ROOM {v.roomIndex + 1} OF {v.roomCount} CLEARED</p>
-      <h2 className="mt-1 font-display text-3xl text-amber-200 title-glow">{v.room?.name ?? 'Room cleared'}</h2>
+      <p className="font-pixel text-[11px] tracking-[0.3em] text-emerald-300">LEVEL {v.roomIndex + 1} OF {v.roomCount} CLEARED</p>
+      <h2 className="mt-1 font-display text-3xl text-amber-200 title-glow">{v.room?.name ?? 'Level cleared'}</h2>
       <p className="mt-1 text-xs text-white/60">{foes} {foes === 1 ? 'foe' : 'foes'} defeated</p>
 
       <ul className="mt-4 space-y-2 text-left" aria-label="Party status">

@@ -117,7 +117,7 @@ export function TitleScreen({ ctrl, onCredits }: { ctrl: GameController; onCredi
             {entering ? 'Descending…' : 'Enter the Dungeon'}
           </button>
           <ul className="flex flex-wrap justify-center gap-2" aria-label="How to play">
-            {['Click a tile to move', 'Click an enemy to attack', 'Ask the DM any rule'].map((t) => <li key={t} className="scr-chip">{t}</li>)}
+            {['Click to explore', 'Wake lairs, win fights', 'Read lore stones', 'Ask the DM any rule'].map((t) => <li key={t} className="scr-chip">{t}</li>)}
           </ul>
           <button className="scr-link" onClick={onCredits}>Credits &amp; licenses</button>
         </div>
