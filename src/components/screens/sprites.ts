@@ -26,3 +26,11 @@ export const IDLE: Record<string, [number, number, number, number]> = {
   elf_f: [128, 4, 16, 28],
   elf_m: [128, 36, 16, 28],
 };
+
+// Static props used on the screens.
+export const STATIC: Record<string, [number, number, number, number]> = {
+  skull: [288, 432, 16, 16],
+  chest_full_open: [336, 416, 16, 16],
+  flask_big_red: [288, 336, 16, 16],
+  heart: [289, 370, 13, 12],
+};
