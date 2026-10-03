@@ -6,6 +6,7 @@ import { Header } from './hud/Header';
 import { Overlays } from './hud/Screens';
 import { ActionBar } from './hud/ActionBar';
 import { TurnBanner } from './hud/TurnBanner';
+import { ExploreHud } from './hud/ExploreHud';
 import { DmPanel } from './DmPanel';
 import { RulesPanel } from './RulesPanel';
 
@@ -41,6 +42,7 @@ export function GameShell({ content }: { content: GameContent }) {
         <section className="panel relative flex h-[min(88dvh,760px)] min-h-[520px] flex-col overflow-visible lg:h-auto lg:min-h-0">
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-t-[10px]">
             <div ref={host} className="absolute inset-0" aria-label="Dungeon map" />
+            {ctrl && <ExploreHud ctrl={ctrl} />}
             {ctrl && <TurnBanner ctrl={ctrl} />}
           </div>
           {ctrl && <Overlays ctrl={ctrl} />}

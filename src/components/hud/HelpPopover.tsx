@@ -4,6 +4,13 @@ import { HOTKEYS } from '@/game/controller';
 
 type Row = { keys: string[]; label: string };
 
+const EXPLORE_ROWS: Row[] = [
+  { keys: ['Click'], label: 'Walk the leader there' },
+  { keys: ['Tab'], label: 'Switch leader (or click a party card)' },
+  { keys: ['E'], label: 'Interact: lore stone, chest, gold' },
+  { keys: ['P'], label: 'Potion for the leader' },
+];
+
 const PRETTY: Record<string, string> = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Enter: 'Enter' };
 
 /** "?" button with a small controls cheat-sheet. */
@@ -31,11 +38,24 @@ export function HelpPopover() {
         <div role="dialog" aria-label="Controls" className="hud-pop right-0 top-[calc(100%+8px)] w-[300px] p-3">
           <div className="panel-title mb-2 text-sm">How to play</div>
           <ul className="mb-2.5 space-y-1 text-[12px] leading-snug text-white/75">
-            <li>Each turn: <b className="text-amber-200">move</b>, then take <b className="text-amber-200">one action</b> (attack, spell, Dodge or potion).</li>
+            <li><b className="text-teal-200">Exploring</b>: click a tile to walk; the party follows the leader. Clear every lair, read lore stones, then find the exit.</li>
+            <li>Walking near a monster lair wakes it: <b className="text-rose-300">combat</b> starts.</li>
+            <li>In combat, each turn: <b className="text-amber-200">move</b>, then take <b className="text-amber-200">one action</b> (attack, spell, Dodge or potion).</li>
             <li>Click a lit tile to move or to target. Hover a unit to inspect it.</li>
             <li>Ask the Dungeon Master any rules question; it cites the SRD.</li>
           </ul>
-          <div className="panel-title mb-1.5 text-xs">Keyboard</div>
+          <div className="panel-title mb-1.5 text-xs">Exploring</div>
+          <table className="mb-2.5 w-full text-[12px]">
+            <tbody>
+              {EXPLORE_ROWS.map((r) => (
+                <tr key={r.label}>
+                  <td className="whitespace-nowrap py-0.5 pr-3">{r.keys.map((k) => <kbd key={k} className="hud-kbd mr-1">{k}</kbd>)}</td>
+                  <td className="py-0.5 text-white/75">{r.label}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="panel-title mb-1.5 text-xs">Combat</div>
           <table className="w-full text-[12px]">
             <tbody>
               {rows.map((r) => (

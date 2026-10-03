@@ -2,12 +2,13 @@
 import type { GameController } from '@/game/controller';
 import { useView } from '../useView';
 import { Portrait } from './Sprite';
+import { playMode } from './explore';
 
 /** Vertical initiative rail on the map's left edge (clear of the dice tray and room title, top-centre). */
 export function InitiativeStrip({ ctrl }: { ctrl: GameController }) {
   const v = useView(ctrl);
   const s = v.state;
-  if (!s) return null;
+  if (!s || playMode(v) === 'explore') return null;
   const hl = (id: string | null) => ctrl.highlightUnit?.(id);
 
   return (

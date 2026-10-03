@@ -8,6 +8,7 @@ import { useView } from '../useView';
 import { Portrait, Sprite } from './Sprite';
 import { Tip } from './Tip';
 import { BootIcon, HourglassIcon, ShieldIcon, SpellGlyph, WeaponIcon } from './Icons';
+import { interact, interactable, leaderId, playMode, setLeader } from './explore';
 
 type Hk = { key: string; label: string; mode: Mode; disabled: boolean };
 
@@ -60,6 +61,21 @@ export function ActionBar({ ctrl }: { ctrl: GameController }) {
       if (ctrl.hotkey?.(e.key)) {
         e.preventDefault();
         if (/^[1-9]$/.test(e.key)) setSpellOpen(false);
+        return;
+      }
+      // Exploration fallbacks if the controller doesn't map these keys itself.
+      const v = ctrl.view;
+      if (v.phase !== 'playing' || playMode(v) !== 'explore') return;
+      if (e.key.toLowerCase() === 'e' && interactable(v)) {
+        e.preventDefault();
+        interact(ctrl);
+      } else if (e.key === 'Tab' && !(t && /^(BUTTON|A)$/.test(t.tagName))) {
+        // Tab cycles the leader only when focus isn't on a control, so keyboard navigation still works
+        const alive = v.state?.combatants.filter((c) => c.side === 'hero' && !(v.units?.[c.id]?.dead ?? c.dead)) ?? [];
+        if (alive.length < 2) return;
+        e.preventDefault();
+        const i = alive.findIndex((c) => c.id === leaderId(v));
+        setLeader(ctrl, alive[(i + (e.shiftKey ? alive.length - 1 : 1)) % alive.length].id);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -68,6 +84,7 @@ export function ActionBar({ ctrl }: { ctrl: GameController }) {
 
   if (!playing || !s) return null;
   const heroes = s.combatants.filter((c) => c.side === 'hero');
+  if (playMode(v) === 'explore') return <ExploreBar ctrl={ctrl} heroes={heroes} state={s} />;
   const notMine = !my ? (v.busy ? 'Enemies are acting…' : 'Not your turn') : v.busy ? 'Resolving…' : null;
   const actWhy = notMine ?? (acted ? `${my!.name.split(' ')[0]} already used the action this turn.` : null);
   const potionWhy = actWhy ?? (!(my!.potions ?? 0) ? 'No potions left.' : my!.hp >= my!.maxHp ? 'Already at full HP.' : null);
@@ -344,7 +361,7 @@ function SpellPopover({ ctrl, me, state, activeSlug, keyFor, onPick }: {
   );
 }
 
-function PartyCard({ ctrl, h, active, state }: { ctrl: GameController; h: Combatant; active: boolean; state: GameState }) {
+function PartyCard({ ctrl, h, active, state, leader, onSelect }: { ctrl: GameController; h: Combatant; active: boolean; state: GameState; leader?: boolean; onSelect?: () => void }) {
   const v = ctrl.view;
   const u = v.units?.[h.id];
   const hp = u?.hp ?? h.hp;
@@ -356,7 +373,26 @@ function PartyCard({ ctrl, h, active, state }: { ctrl: GameController; h: Combat
   const conc = h.concentratingOn ? state.spells[h.concentratingOn] : null;
 
   return (
-    <div className={`hud-card ${active ? 'active' : ''} ${dead ? 'dead' : ''}`} aria-current={active ? 'true' : undefined}>
+    <div
+      className={`hud-card ${active ? 'active' : ''} ${dead ? 'dead' : ''} ${leader ? 'leader' : ''} ${onSelect ? 'selectable' : ''}`}
+      aria-current={active || leader ? 'true' : undefined}
+      {...(onSelect && {
+        role: 'button',
+        tabIndex: dead ? -1 : 0,
+        'aria-pressed': !!leader,
+        'aria-label': `${h.name}${leader ? ', party leader' : ', make leader'}`,
+        title: leader ? `${h.name} leads the party` : `Make ${h.name} the leader`,
+        onClick: () => !dead && onSelect(),
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !dead) {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect();
+          }
+        },
+      })}
+    >
+      {leader && <span className="hud-crown" aria-hidden>♛</span>}
       <span className="hud-portrait-frame max-sm:hidden">
         <Portrait spriteKey={h.spriteKey} size={40} />
         {dead && <span className="absolute inset-0 grid place-items-center bg-black/40"><Sprite frame="skull" size={20} /></span>}
@@ -406,5 +442,65 @@ function PartyCard({ ctrl, h, active, state }: { ctrl: GameController; h: Combat
         )}
       </div>
     </div>
+  );
+}
+
+/** Exploration bar: clickable party cards (leader select), contextual Interact, Potion and a controls hint. */
+function ExploreBar({ ctrl, heroes, state }: { ctrl: GameController; heroes: Combatant[]; state: GameState }) {
+  const v = useView(ctrl);
+  const lead = leaderId(v) ?? heroes.find((h) => !h.dead)?.id ?? null;
+  const me = heroes.find((h) => h.id === lead) ?? null;
+  const it = interactable(v);
+  const first = me?.name.split(' ')[0] ?? 'Leader';
+  const potionWhy = !me ? 'No leader.' : !(me.potions ?? 0) ? 'No potions left.' : me.hp >= me.maxHp ? `${first} is at full HP.` : v.busy ? 'Resolving…' : null;
+  return (
+    <div className="relative z-20 border-t border-amber-900/40 bg-gradient-to-b from-black/30 to-black/60 px-2 pb-2 pt-1.5">
+      <div className="mb-1.5 grid grid-cols-3 gap-1.5" aria-label="Party: choose a leader">
+        {heroes.map((h) => (
+          <PartyCard key={h.id} ctrl={ctrl} h={h} active={false} state={state} leader={h.id === lead} onSelect={() => setLeader(ctrl, h.id)} />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-stretch gap-1.5 max-sm:gap-1">
+        <div className="flex min-w-[148px] flex-col justify-center gap-1 rounded-lg bg-black/35 px-2.5 py-1.5 ring-1 ring-white/5 max-sm:w-full" aria-live="polite">
+          <div className="truncate font-display text-[15px] leading-none text-teal-200">{first} leads</div>
+          <div className="hud-explore-hint">Click a tile to walk</div>
+        </div>
+        <ActBtn
+          label={it ? it.label : 'Interact'}
+          icon={<InteractIcon kind={it?.kind} />}
+          hk="E"
+          active={!!it}
+          why={it ? null : 'Walk next to a lore stone, chest or gold.'}
+          tip={it ? <><b>{it.label}</b>: the party stops to {it.kind === 'lore' ? 'read it; the DM narrates what it says' : 'take a closer look'}.</> : <><b>Interact</b> with something next to the leader.</>}
+          onClick={() => interact(ctrl)}
+        />
+        <ActBtn
+          label={`Potion ×${me?.potions ?? 0}`}
+          icon={<Sprite frame="flask_big_red" size={20} />}
+          hk="P"
+          why={potionWhy}
+          tip={<><b>Potion of Healing</b>: {first} regains 2d4+2 HP.</>}
+          onClick={() => void ctrl.potion()}
+        />
+        <div className="ml-auto flex items-center gap-2 rounded-lg bg-black/25 px-3 py-1.5 ring-1 ring-white/5 max-sm:ml-0 max-sm:w-full">
+          <span className="hud-explore-hint leading-snug">
+            <b className="text-amber-200">Party</b>: click a card or press <span className="hud-kbd">Tab</span> to switch leader.
+            <br />Lairs wake when you get close.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InteractIcon({ kind }: { kind?: string }) {
+  if (kind === 'chest') return <Sprite frame="chest_full_open_anim_f0" size={20} />;
+  if (kind === 'gold') return <Sprite frame="coin_anim_f0" size={14} />;
+  if (kind === 'door') return <span className="font-pixel text-lg text-emerald-300">➜</span>;
+  return (
+    <svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4 14V5.5C4 3 5.8 1.5 8 1.5S12 3 12 5.5V14H4Z" fill="#6b6475" stroke="#2a2433" />
+      <path d="M6 6h4M6 8.5h4M6 11h3" stroke="#c4b5fd" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
   );
 }
