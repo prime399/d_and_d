@@ -548,9 +548,10 @@ export class GameController {
       left ? `${left} lair${left === 1 ? '' : 's'} still lurk in the dark.` : 'No monster lair remains on this level.',
     ]);
     this.flushBeat(true);
-    this.returnToExplore(state, downed);
+    const finalWin = !left && this.view.roomIndex >= this.rooms.length - 1;
+    this.returnToExplore(state, downed, !finalWin);
     if (!left) {
-      if (this.view.roomIndex >= this.rooms.length - 1) {
+      if (finalWin) {
         audio.play('victory');
         this.update({ phase: 'victory', busy: false, isPlayerTurn: false });
         return;
@@ -564,7 +565,7 @@ export class GameController {
   }
 
   /** Back to free exploration with the heroes where the fight left them. */
-  private returnToExplore(state: GameState, downed = new Set<string>()) {
+  private returnToExplore(state: GameState, downed = new Set<string>(), music = true) {
     const at = new Map(state.combatants.filter((c) => c.side === 'hero').map((c) => [c.refSlug, c.pos]));
     const heroes = this.content.heroes.map((h, i) => heroToCombatant(h, at.get(h.slug) ?? this.arena!.heroSpawns[i] ?? { x: 1, y: 1 }, this.progress[h.slug]));
     const s = this.exploreState(heroes);
@@ -576,7 +577,8 @@ export class GameController {
     // revived heroes need fresh sprites (their old ones played the death animation)
     if (downed.size) this.syncUnits(downed);
     this.syncUnits();
-    this.playExploreMusic();
+    // the throne victory goes straight to the victory theme, with no explore blip in between
+    if (music) this.playExploreMusic();
     this.enterExploreView();
   }
 
