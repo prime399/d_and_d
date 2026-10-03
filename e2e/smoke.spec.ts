@@ -89,7 +89,11 @@ test('play room 1 to victory', async ({ page }) => {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
   let phase = 'reloaded';
-  for (let attempt = 0; attempt < 4 && phase === 'reloaded'; attempt++) phase = await playRoom(page, errors);
+  for (let attempt = 0; attempt < 4 && phase === 'reloaded'; attempt++) {
+    const t0 = Date.now();
+    phase = await playRoom(page, errors);
+    console.log(`[smoke] attempt ${attempt + 1}: ${phase} after ${Math.round((Date.now() - t0) / 1000)}s`);
+  }
   expect(phase).toBe('room-cleared');
   expect(errors).toEqual([]);
 });
