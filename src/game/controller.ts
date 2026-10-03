@@ -292,6 +292,8 @@ export class GameController {
     this.loreRead.clear();
     this.doorOpen = false;
     this.walkTarget = null;
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.view.toast = null;
     this.grid = levelGrid(arena);
     this.lairs = this.buildLairs(room, arena);
 
