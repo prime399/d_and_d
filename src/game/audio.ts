@@ -19,10 +19,14 @@ class AudioManager {
   muted = false;
 
   unlock() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      this.ctx = new AudioContext();
+    try {
+      if ((!this.ctx || this.ctx.state === 'closed') && typeof window !== 'undefined' && 'AudioContext' in window) {
+        this.ctx = new AudioContext();
+      }
+      void this.ctx?.resume().catch(() => {});
+    } catch {
+      this.ctx = null; // no WebAudio (e.g. headless): sfx stay silent
     }
-    void this.ctx?.resume();
   }
 
   play(track: Track) {
