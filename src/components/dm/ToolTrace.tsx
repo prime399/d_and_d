@@ -7,7 +7,7 @@ import type { DmLookup } from '@/app/api/dm/route';
 import { CiteChip } from '../RichText';
 
 const VIA_LABEL: Record<DmLookup['via'], string> = {
-  'sanity-context': 'Sanity Context MCP',
+  'sanity-context': 'Sanity Context (GROQ)',
   'knowledge-base': 'Sanity Knowledge Base',
   local: 'Local rules index (offline)',
 };
@@ -20,8 +20,8 @@ export function backendLabel(b: ChatMessage['backend']) {
 
 function toolIcon(tool: string) {
   const t = tool.toLowerCase();
-  if (t.includes('groq') || t.includes('query')) return '⌕';
   if (t.includes('kb') || t.includes('knowledge')) return '📚';
+  if (t.includes('groq') || t.includes('query')) return '⌕';
   if (t.includes('schema')) return '🧩';
   if (t.includes('search')) return '🔎';
   return '⚙';
@@ -48,6 +48,20 @@ function formatInput(input: string): { groq?: string; rest?: string } {
   }
 }
 
+type TraceInput = { search?: { kind: string; text: string }; groq?: string; rest?: string };
+
+/** Knowledge Base calls: show the keyword search or the entry paths read, not raw JSON. */
+function kbInput(input: string): TraceInput {
+  try {
+    const o = JSON.parse(input) as { query?: unknown; paths?: unknown };
+    if (typeof o.query === 'string') return { search: { kind: 'search', text: `“${o.query}”` } };
+    if (Array.isArray(o.paths)) return { search: { kind: 'read', text: o.paths.join(', ') } };
+  } catch {
+    /* fall through */
+  }
+  return { rest: input };
+}
+
 function prettyGroq(q: string) {
   return q.replace(/\s*\{\s*/, ' {\n  ').replace(/\s*,\s*(?![^[]*\])/g, ',\n  ').replace(/\s*\}\s*$/, '\n}');
 }
@@ -58,7 +72,9 @@ export function ToolTrace({ msg, titles, onCite, content }: { msg: ChatMessage; 
   if (!lookups.length) return null;
   const docs = new Set(lookups.flatMap((l) => l.ids));
   const vias = [...new Set(lookups.map((l) => l.via))];
-  const sourceLabel = vias.includes('sanity-context') || vias.includes('knowledge-base') ? 'Sanity' + (vias.includes('knowledge-base') && !vias.includes('sanity-context') ? ' KB' : ' Context') : 'local index';
+  const kb = vias.includes('knowledge-base');
+  const gq = vias.includes('sanity-context');
+  const sourceLabel = kb && gq ? 'Sanity KB + GROQ' : kb ? 'Sanity Knowledge Base' : gq ? 'Sanity Context' : 'local index';
   return (
     <div className="dm-trace">
       <button type="button" className="dm-trace-sum" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
@@ -71,7 +87,7 @@ export function ToolTrace({ msg, titles, onCite, content }: { msg: ChatMessage; 
       {open && (
         <ol className="dm-steps">
           {lookups.map((l, i) => {
-            const f = formatInput(l.input);
+            const f: TraceInput = l.via === 'knowledge-base' ? kbInput(l.input) : formatInput(l.input);
             return (
               <li key={i} className="dm-step">
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -80,6 +96,29 @@ export function ToolTrace({ msg, titles, onCite, content }: { msg: ChatMessage; 
                   <code className="font-mono text-[11px] font-semibold text-amber-100">{l.tool}</code>
                   <span className={`dm-badge dm-badge-${l.via}`}>{VIA_LABEL[l.via]}</span>
                 </div>
+                {f.search && (
+                  <div className="dm-kb-q">
+                    <span className="dm-code-lang">{f.search.kind}</span>
+                    {f.search.text}
+                  </div>
+                )}
+                {!!l.paths?.length && (
+                  <div className="dm-kb-paths" aria-label="Knowledge Base entries">
+                    {l.paths.map((p) => (
+                      <code key={p}>{p}</code>
+                    ))}
+                  </div>
+                )}
+                {!!l.notes?.length && (
+                  <ul className="dm-kb-notes" aria-label="Edition differences flagged by the Knowledge Base">
+                    {l.notes.slice(0, 2).map((n) => (
+                      <li key={n}>
+                        <span aria-hidden>⚖ </span>
+                        {n}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {f.groq && (
                   <pre className="dm-code" aria-label="GROQ query">
                     <span className="dm-code-lang">GROQ</span>
@@ -93,7 +132,10 @@ export function ToolTrace({ msg, titles, onCite, content }: { msg: ChatMessage; 
                   </pre>
                 )}
                 <div className="mt-1 flex flex-wrap items-center gap-y-1 text-[10.5px] text-white/50">
-                  <span className="mr-1">→ {l.ids.length ? `${l.ids.length} doc${l.ids.length > 1 ? 's' : ''}` : 'no docs'}</span>
+                  <span className="mr-1">
+                    → {l.ids.length ? `${l.ids.length} doc${l.ids.length > 1 ? 's' : ''}` : 'no docs'}
+                    {typeof l.ms === 'number' && <span className="ml-1 text-white/35">· {l.ms} ms</span>}
+                  </span>
                   {l.ids.slice(0, 8).map((id) => (
                     <CiteChip key={id} id={id} titles={titles} onCite={onCite} content={content} />
                   ))}
