@@ -128,8 +128,8 @@ SANITY_CONTEXT_MCP_URL=https://api.sanity.io/v1/context/organizations/<orgId>/mc
 SANITY_CONTEXT_TOKEN=<org Context Viewer token>
 SANITY_KB_MCP_URL=https://api.sanity.io/v1/context/organizations/<orgId>/mcp/dnd-kb
 SANITY_KB_TOKEN=<org Context Viewer token>
-AI_GATEWAY_API_KEY=<vercel ai gateway key>
-DM_MODEL=anthropic/claude-haiku-4.5
+OPENROUTER_API_KEY=<openrouter api key>
+DM_MODEL=nvidia/nemotron-3.5-lightning
 SANITY_STUDIO_PROJECT_ID=<projectId>
 SANITY_STUDIO_DATASET=production
 ```
