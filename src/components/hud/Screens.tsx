@@ -1,100 +1,123 @@
 'use client';
+import { useEffect, useState } from 'react';
 import type { GameController } from '@/game/controller';
 import { useView } from '../useView';
 import { DiceOverlay } from '../DiceOverlay';
 import { InitiativeStrip } from './InitiativeStrip';
+import { TitleScreen } from '../screens/TitleScreen';
+import { EndScreen, RoomCleared } from '../screens/EndScreens';
+import { CreditsModal } from '../screens/Credits';
+import { CREDITS_EVENT, openCredits } from '../screens/credits';
+import { Sprite } from '../screens/Sprite';
+
+export { openCredits, CreditsModal };
 
 export function Overlays({ ctrl }: { ctrl: GameController }) {
   const v = useView(ctrl);
+  const [credits, setCredits] = useState(false);
+  // Remember the newest ruling key when each room starts so the cleared card can show "rules cited this room".
+  const [mark, setMark] = useState({ room: -1, key: 0 });
+  if (v.phase === 'playing' && mark.room !== v.roomIndex) {
+    setMark({ room: v.roomIndex, key: v.rulings.reduce((m, r) => Math.max(m, r.key), 0) });
+  }
+
+  useEffect(() => {
+    const on = () => setCredits(true);
+    window.addEventListener(CREDITS_EVENT, on);
+    return () => window.removeEventListener(CREDITS_EVENT, on);
+  }, []);
+
   return (
     <>
       <DiceOverlay show={v.dice} />
       {v.state && v.phase === 'playing' && <InitiativeStrip ctrl={ctrl} />}
-      {v.hover?.unit && (
-        <div className="pointer-events-none absolute right-3 top-14 z-20 w-48 rounded-md bg-black/80 p-2 text-xs ring-1 ring-white/10 fade-in">
-          <div className={`font-semibold ${v.hover.unit.side === 'hero' ? 'text-sky-200' : 'text-rose-200'}`}>{v.hover.unit.name}</div>
-          <div className="text-white/70">HP {v.hover.unit.hp}/{v.hover.unit.maxHp} · AC {v.hover.unit.ac}</div>
-          {v.hover.unit.conditions.length > 0 && <div className="mt-1 text-amber-200">{v.hover.unit.conditions.map((c) => ctrl.titleOf(`condition.${c}`)).join(', ')}</div>}
-        </div>
-      )}
-      {v.toast && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex justify-center">
-          <div className="fade-in rounded-md bg-black/85 px-4 py-2 text-sm text-amber-100 ring-1 ring-amber-700/50">{v.toast}</div>
-        </div>
-      )}
-      {v.phase === 'title' && <TitleScreen ctrl={ctrl} />}
-      {v.phase === 'room-cleared' && (
-        <Modal>
-          <h2 className="font-display text-3xl text-amber-200 title-glow">Room cleared</h2>
-          <p className="mt-2 text-sm text-white/70">The party catches its breath (short rest: each hero recovers a third of their HP). A door grinds open to the north…</p>
-          <div className="mt-5 flex justify-center gap-3">
-            <button className="btn btn-primary px-5 py-2" onClick={() => void ctrl.nextRoom()} autoFocus>Go deeper →</button>
-          </div>
-        </Modal>
-      )}
-      {(v.phase === 'victory' || v.phase === 'defeat') && <EndScreen ctrl={ctrl} />}
+      {v.phase === 'playing' && v.hover?.unit && <HoverCard ctrl={ctrl} unit={v.hover.unit} />}
+      <Toasts toast={v.toast} />
+      {v.phase === 'title' && <TitleScreen ctrl={ctrl} onCredits={() => setCredits(true)} />}
+      {v.phase === 'room-cleared' && <RoomCleared ctrl={ctrl} sinceKey={mark.room === v.roomIndex ? mark.key : 0} />}
+      {(v.phase === 'victory' || v.phase === 'defeat') && <EndScreen key={v.phase} ctrl={ctrl} onCredits={() => setCredits(true)} />}
+      {credits && <CreditsModal onClose={() => setCredits(false)} />}
     </>
   );
 }
 
-function Modal({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-black/60 backdrop-blur-[2px]" role="dialog" aria-modal="true">
-      <div className="panel fade-in max-w-md p-6 text-center">{children}</div>
-    </div>
-  );
-}
+type HoverUnit = NonNullable<NonNullable<GameController['view']['hover']>['unit']>;
 
-function TitleScreen({ ctrl }: { ctrl: GameController }) {
-  const heroes = ctrl.content.heroes;
+function HoverCard({ ctrl, unit: u }: { ctrl: GameController; unit: HoverUnit }) {
+  const hero = u.side === 'hero';
+  const monster = hero ? undefined : ctrl.content.monsters.find((m) => m.slug === u.refSlug);
+  const heroData = hero ? ctrl.content.heroes.find((h) => h.slug === u.refSlug) : undefined;
+  const sprite = monster?.spriteKey ?? heroData?.spriteKey;
+  const pct = Math.max(0, Math.min(1, u.hp / u.maxHp));
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-[radial-gradient(ellipse_at_center,rgba(40,20,30,.85),rgba(5,3,8,.97))]">
-      <div className="fade-in max-w-2xl px-6 text-center">
-        <p className="font-pixel text-xs tracking-[0.3em] text-amber-500/80">A D&amp;D 5E DUNGEON CRAWL</p>
-        <h2 className="mt-2 font-display text-5xl text-amber-200 title-glow sm:text-6xl">The Goblin Warren</h2>
-        <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/70">
-          Five rooms. Three heroes. One Dungeon Master who never makes up a rule: every ruling is looked up in the rules tome and shown with its source.
-        </p>
-        <div className="mt-6 grid grid-cols-3 gap-3 text-left">
-          {heroes.map((h) => (
-            <div key={h.slug} className="rounded-md bg-black/40 p-3 ring-1 ring-amber-900/40">
-              <div className="font-display text-amber-100">{h.name}</div>
-              <div className="text-[11px] text-amber-400/80">Level {h.level} {h.className} · AC {h.ac} · {h.hp} HP</div>
-              <p className="mt-1 text-[11px] leading-snug text-white/60">{h.blurb}</p>
-            </div>
-          ))}
-        </div>
-        <button className="btn btn-primary mt-8 px-8 py-3 text-lg" onClick={() => void ctrl.start()} autoFocus>
-          Enter the dungeon
-        </button>
-        <p className="mt-3 text-[11px] text-white/40">Click a tile to move · click an enemy to attack · ask the DM any rules question</p>
-      </div>
-    </div>
-  );
-}
-
-function EndScreen({ ctrl }: { ctrl: GameController }) {
-  const v = useView(ctrl);
-  const win = v.phase === 'victory';
-  const s = v.stats;
-  return (
-    <Modal>
-      <h2 className={`font-display text-4xl title-glow ${win ? 'text-amber-200' : 'text-rose-300'}`}>{win ? 'Victory!' : 'The party has fallen'}</h2>
-      <p className="mt-2 text-sm text-white/70">{win ? 'The Bugbear Chief lies still and the Goblin Warren is silent. Songs will be sung.' : `Defeated in ${v.room?.name ?? 'the dark'}.`}</p>
-      <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-        {[
-          ['Dice rolled', s.rolls], ['Crits', s.crits], ['Foes slain', s.kills], ['Rules cited', s.rulesCited],
-        ].map(([k, n]) => (
-          <div key={k} className="rounded bg-black/40 p-2 ring-1 ring-white/10">
-            <div className="font-display text-2xl text-amber-100">{n}</div>
-            <div className="text-[10px] uppercase tracking-wide text-white/50">{k}</div>
+    <div className={`scr-hover pointer-events-none absolute right-3 top-12 z-20 w-60 ${hero ? 'scr-hover-hero' : 'scr-hover-foe'}`} role="status" aria-live="polite">
+      <div className="flex items-center gap-2.5">
+        {sprite && <div className="scr-hover-portrait"><Sprite k={sprite} scale={2} anim={false} /></div>}
+        <div className="min-w-0 flex-1">
+          <div className={`truncate font-display text-base leading-tight ${hero ? 'text-sky-100' : 'text-rose-100'}`}>{u.name}</div>
+          <div className="text-[10px] uppercase tracking-wider text-white/55">
+            {hero ? `${heroData?.className ?? 'Hero'}` : monster ? `CR ${fmtCr(monster.cr)} · ${monster.xp} XP` : 'Monster'}
           </div>
-        ))}
+        </div>
+        <div className="scr-ac" aria-label={`Armor class ${u.ac}`}><span>AC</span>{u.ac}</div>
       </div>
-      <div className="mt-5 flex justify-center gap-3">
-        {!win && <button className="btn btn-primary px-5 py-2" onClick={() => void ctrl.retryRoom()} autoFocus>Retry room</button>}
-        <button className="btn px-5 py-2" onClick={() => ctrl.restart()}>New run</button>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="scr-bar flex-1"><span style={{ width: `${pct * 100}%` }} className={pct > 0.5 ? 'bg-emerald-400' : pct > 0.25 ? 'bg-amber-400' : 'bg-rose-500'} /></div>
+        <span className="font-pixel text-xs tabular-nums text-white/85">{Math.max(0, u.hp)}/{u.maxHp}</span>
       </div>
-    </Modal>
+      {u.conditions.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {u.conditions.map((c) => <span key={c} className="scr-cond">{ctrl.titleOf(`condition.${c}`)}</span>)}
+        </div>
+      )}
+      {monster && monster.attacks.length > 0 && (
+        <ul className="mt-2 space-y-0.5 border-t border-white/10 pt-1.5 text-[11px]">
+          {monster.attacks.map((a) => (
+            <li key={a.name} className="flex justify-between gap-2">
+              <span className="truncate text-[#ece3d0]/85">{a.name}{a.range > 1 ? <span className="text-white/45"> · {a.range * 5}ft</span> : null}</span>
+              <span className="shrink-0 font-pixel text-rose-200">+{a.toHit} · {a.damage}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const fmtCr = (cr: number) => (cr === 0.125 ? '1/8' : cr === 0.25 ? '1/4' : cr === 0.5 ? '1/2' : String(cr));
+
+type ToastItem = { id: number; text: string; tone: 'cond' | 'err' | 'loot' | 'info' };
+
+function toneOf(t: string): ToastItem['tone'] {
+  if (/finds|potion|recover/i.test(t)) return 'loot';
+  if (/out of reach|^pick|not allowed|move next|empty|can't|cannot|no /i.test(t)) return 'err';
+  if (/ is .+!$|loses the turn|prone|poisoned|frightened|paralyzed|restrained|charmed|stunned|unconscious|asleep/i.test(t)) return 'cond';
+  return 'info';
+}
+
+const TOAST_ICON: Record<ToastItem['tone'], string> = { cond: '◆', err: '✕', loot: '✦', info: '•' };
+
+/** Stacks the controller's single `toast` string into a short history so rapid messages don't clobber each other. */
+function Toasts({ toast }: { toast: string | null }) {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  const [last, setLast] = useState<string | null>(null);
+  if (toast !== last) {
+    setLast(toast);
+    if (toast) setItems((xs) => [...xs.slice(-2), { id: Date.now() + Math.random(), text: toast, tone: toneOf(toast) }]);
+  }
+  useEffect(() => {
+    if (!items.length) return;
+    const t = setTimeout(() => setItems((xs) => xs.slice(1)), 3200);
+    return () => clearTimeout(t);
+  }, [items]);
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-1.5 px-3" aria-live="polite" role="status">
+      {items.map((t) => (
+        <div key={t.id} className={`scr-toast scr-toast-${t.tone}`}>
+          <span aria-hidden className="scr-toast-ic">{TOAST_ICON[t.tone]}</span>
+          {t.text}
+        </div>
+      ))}
+    </div>
   );
 }
