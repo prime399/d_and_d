@@ -1,26 +1,86 @@
 @import "tailwindcss";
+@import "../styles/hud.css";
+@import "../styles/screens.css";
+@import "../styles/dm.css";
+@import "../styles/rules.css";
+@import "../styles/scene.css";
+@import "../styles/dice.css";
+
+@theme {
+  --font-display: var(--font-medieval), ui-serif, Georgia, serif;
+  --font-pixel: var(--font-pixelify), ui-monospace, monospace;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --parchment: #e9dcc0;
+  --ink: #120c14;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  background: radial-gradient(ellipse at top, #1d1324 0%, #0a0610 55%, #050308 100%);
+  color: #ece3d0;
+  font-family: var(--font-body);
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(30, 21, 34, 0.92), rgba(16, 11, 20, 0.94));
+  border: 1px solid rgba(201, 150, 70, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.06), 0 10px 30px rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  color: #f2d48f;
+}
+
+.btn {
+  font-family: var(--font-pixel);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  background: linear-gradient(180deg, #3b2a3e, #241829);
+  border: 1px solid rgba(232, 180, 90, 0.4);
+  color: #fbecc9;
+  transition: transform 0.08s, filter 0.15s, box-shadow 0.15s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.25); box-shadow: 0 0 12px rgba(255, 190, 90, 0.25); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid #ffd27a; outline-offset: 2px; }
+.btn-active { background: linear-gradient(180deg, #8a5a17, #5a3809); border-color: #ffd27a; color: #fff6dc; }
+.btn-primary { background: linear-gradient(180deg, #a3471f, #6b2410); border-color: #ffb36b; }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(201, 150, 70, 0.35) transparent; }
+
+/* dice */
+.die { width: 100%; height: 100%; }
+.die-rolling { animation: die-tumble 0.65s cubic-bezier(.2,.7,.3,1) both; }
+.die-landed { animation: die-land 0.35s ease-out both; }
+@keyframes die-tumble {
+  0% { transform: translate(-120px, -40px) rotate(-260deg) scale(0.6); opacity: 0; }
+  60% { transform: translate(8px, 6px) rotate(20deg) scale(1.05); opacity: 1; }
+  100% { transform: translate(0, 0) rotate(0) scale(1); }
+}
+@keyframes die-land {
+  0% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.dice-result { animation: pop 0.3s ease-out both; }
+@keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+.fade-in { animation: fadein 0.5s ease-out both; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.title-glow { text-shadow: 0 0 24px rgba(255, 150, 60, 0.55), 0 2px 0 #3a1606; }
+
+.typing::after { content: '▍'; animation: blink 1s steps(1) infinite; margin-left: 2px; color: #f2d48f; }
+@keyframes blink { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
