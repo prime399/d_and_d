@@ -65,6 +65,14 @@ test('combat fx', async ({ page }) => {
   });
   await page.waitForTimeout(520);
   await page.screenshot({ path: 'e2e/out/scene-fx.png' });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => {
+    const w = window as unknown as { __game: { scene: { highlightUnit?: (id: string | null) => void }; view: { state: { combatants: { id: string; side: string }[] } } } };
+    w.__game.scene.highlightUnit?.(w.__game.view.state.combatants.find((c) => c.side !== 'hero')!.id);
+  });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'e2e/out/scene-highlight.png' });
+  await page.evaluate(() => (window as unknown as { __game: { scene: { highlightUnit?: (id: string | null) => void } } }).__game.scene.highlightUnit?.(null));
   await page.waitForTimeout(1500);
   expect(errors.filter((e) => !/favicon|DM|fetch|Sanity|api/i.test(e))).toEqual([]);
 });
