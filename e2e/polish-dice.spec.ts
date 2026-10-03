@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { startGame } from './lib/core';
 
 // Drives the dice overlay directly through window.__game and captures each roll type.
 type G = { __game: { start?: () => void; update: (p: unknown) => void; view: { phase: string } } };
@@ -12,13 +13,8 @@ const ROLLS: Record<string, object> = {
 };
 
 async function boot(page: Page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Enter the dungeon' }).click();
-  // wait for an idle hero turn so engine rolls don't overwrite the injected ones
-  await page.waitForFunction(() => {
-    const v = (window as unknown as { __game?: { view: { phase: string; isPlayerTurn: boolean; busy: boolean } } }).__game?.view;
-    return v && v.phase === 'playing' && v.isPlayerTurn && !v.busy;
-  }, null, { timeout: 75_000 });
+  // the game opens in explore mode: idle, so engine rolls won't overwrite the injected ones
+  await startGame(page);
   await page.waitForTimeout(2200);
 }
 
@@ -68,7 +64,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     expect(frames.p50).toBeLessThan(base.p50 + 17);
     console.log('errors:', JSON.stringify(errors));
     // audio.ts (not dice) throws a 'gain' null error in headless Chrome without audio; tracked separately
-    expect(errors.filter((e) => !/reading 'gain'/.test(e))).toEqual([]);
+    expect(errors.filter((e) => !/reading 'gain'|status of 429/.test(e))).toEqual([]);
   });
 }
 

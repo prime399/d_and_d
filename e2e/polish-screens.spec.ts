@@ -1,3 +1,4 @@
+import { waitReady, toPlayerTurn } from './lib/core';
 import { test, expect, type Page } from '@playwright/test';
 
 type G = { view: Record<string, unknown>; update: (p: Record<string, unknown>) => void; start: () => Promise<void> };
@@ -17,14 +18,14 @@ for (const [w, h] of [[1366, 768], [1920, 1080]] as const) {
     const scroll = await page.evaluate(() => document.documentElement.scrollHeight > innerHeight);
     expect(scroll).toBe(false);
     if (w === 1366) {
-      await page.getByRole('button', { name: /Credits/ }).click();
+      await page.getByRole('button', { name: 'Credits & licenses' }).click();
       await expect(page.getByRole('dialog', { name: 'Credits' })).toBeVisible();
       await page.waitForTimeout(400);
       await page.screenshot({ path: 'e2e/out/screens-credits.png' });
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog', { name: 'Credits' })).toBeHidden();
     }
-    expect(errors.filter((e) => !/favicon|AudioContext|autoplay/i.test(e))).toEqual([]);
+    expect(errors.filter((e) => !/favicon|AudioContext|autoplay|status of 429/i.test(e))).toEqual([]);
   });
 }
 
@@ -33,10 +34,8 @@ test('room cleared, victory, defeat, hover, toasts', async ({ page }) => {
   await page.goto('/');
   await game(page);
   await page.getByRole('button', { name: 'Enter the Dungeon' }).click();
-  await page.waitForFunction(() => {
-    const g = (window as unknown as { __game: G }).__game;
-    return g.view.isPlayerTurn && !g.view.busy;
-  }, null, { timeout: 40_000 });
+  await waitReady(page);
+  await toPlayerTurn(page);
 
   // hover card on a monster + stacked toasts
   await page.evaluate(() => {

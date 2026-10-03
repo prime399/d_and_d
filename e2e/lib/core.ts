@@ -141,6 +141,17 @@ export async function withReloadRetry<T>(page: Page, errors: string[], fn: () =>
 export function collectErrors(page: Page) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  // 429s are the DM rate limit (all local tests share one IP); the game degrades gracefully, so they aren't failures
+  page.on('console', (m) => { if (m.type() === 'error' && !/status of 429/.test(m.text())) errors.push(m.text()); });
   return errors;
+}
+
+/** From explore mode: walks into the first uncleared lair and waits for an idle hero turn. */
+export async function toPlayerTurn(page: Page, timeout = 75_000) {
+  const id = await page.evaluate(() => (window as unknown as { __game: G }).__game.debugLairs().find((l) => !l.cleared)?.id ?? 1);
+  await walkIntoLair(page, id);
+  await page.waitForFunction(() => {
+    const v = (window as unknown as { __game: G }).__game.view;
+    return v.phase !== 'playing' || (v.playMode === 'combat' && v.isPlayerTurn && !v.busy);
+  }, null, { timeout });
 }

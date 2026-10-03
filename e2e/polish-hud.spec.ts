@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { startGame, toPlayerTurn } from './lib/core';
 
 type G = { view: { isPlayerTurn: boolean; busy: boolean; phase: string; state: { combatants: { side: string; spells?: string[] }[] } | null; activeId: string | null }; start: () => Promise<void>; endTurn: () => Promise<void> };
 const g = (p: Page) => p.evaluate(() => !!(window as unknown as { __game?: G }).__game);
@@ -31,10 +32,9 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     await page.setViewportSize(vp);
-    await page.goto('/');
-    await page.waitForFunction(() => !!(window as unknown as { __game?: G }).__game, null, { timeout: 30_000 });
+    await startGame(page);
     expect(await g(page)).toBe(true);
-    await page.evaluate(() => { void (window as unknown as { __game: G }).__game.start(); });
+    await toPlayerTurn(page);
     await page.waitForTimeout(400);
     await page.screenshot({ path: `e2e/out/hud-${vp.width}-banner.png` });
     await heroTurn(page);
@@ -68,9 +68,8 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
 
 test('hud narrow 390', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await page.waitForFunction(() => !!(window as unknown as { __game?: G }).__game, null, { timeout: 30_000 });
-  await page.evaluate(() => { void (window as unknown as { __game: G }).__game.start(); });
+  await startGame(page);
+  await toPlayerTurn(page);
   await heroTurn(page);
   await page.waitForTimeout(1300);
   const w = await page.evaluate(() => document.documentElement.scrollWidth);

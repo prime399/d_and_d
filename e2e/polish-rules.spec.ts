@@ -1,15 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { startGame, toPlayerTurn } from './lib/core';
 
 type G = { focusDoc: (id: string) => void; clearFocus?: () => void; view: { focus: string | null; rulings: unknown[] } };
 
 async function boot(page: Page) {
-  await page.goto('/');
-  await page.waitForFunction(() => !!(window as unknown as { __game?: unknown }).__game, null, { timeout: 30_000 });
-  await page.getByRole('button', { name: 'Enter the dungeon' }).click();
-  await page.waitForFunction(() => {
-    const g = (window as unknown as { __game: { view: { isPlayerTurn: boolean; busy: boolean } } }).__game;
-    return g.view.isPlayerTurn && !g.view.busy;
-  }, null, { timeout: 30_000 });
+  await startGame(page);
+  await toPlayerTurn(page);
   await page.waitForTimeout(1500); // let the force layout settle and zoom-to-fit
 }
 
@@ -71,7 +67,7 @@ for (const vp of [
 
     const scroll = await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight);
     expect(scroll).toBe(false);
-    expect(errors).toEqual([]);
+    expect(errors.filter((e) => !/status of 429/.test(e))).toEqual([]);
   });
 }
 
