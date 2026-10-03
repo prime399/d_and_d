@@ -884,6 +884,7 @@ export class GameController {
       const lore = a.lore?.find((l) => posKey(l.pos) === k);
       if (!lore || this.loreRead.has(k)) return;
       this.loreRead.add(k);
+      this.sceneX?.pickup?.(lore.pos);
       audio.blip('spell');
       this.toast(`Lore stone: ${lore.title}`);
       this.log(`${L.name} reads the lore stone "${lore.title}": ${lore.text}`);
