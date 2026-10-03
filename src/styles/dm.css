@@ -160,6 +160,10 @@
 /* Knowledge Base steps in "How the DM ruled" */
 .dm-kb-q { margin-top: 4px; padding: 4px 7px; border-radius: 5px; font-size: 11.5px; color: #ece3d0; background: rgba(139,92,246,.12); box-shadow: inset 0 0 0 1px rgba(139,92,246,.3); }
 .dm-kb-paths { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
-.dm-kb-paths code { font-size: 10px; padding: 0 5px; border-radius: 4px; color: #ddd2ff; background: rgba(139,92,246,.14); }
+.dm-kb-paths code { min-width: 0; overflow-wrap: anywhere; font-size: 10px; padding: 0 5px; border-radius: 4px; color: #ddd2ff; background: rgba(139,92,246,.14); }
 .dm-kb-notes { margin-top: 4px; display: grid; gap: 3px; font-size: 10.5px; line-height: 1.35; color: #e4dcff; }
 .dm-kb-notes li { padding-left: 6px; border-left: 2px solid rgba(139,92,246,.6); }
+
+/* long KB paths / GROQ tokens must never widen the side column */
+.dm-panel, .dm-steps, .dm-step, .dm-bubble { min-width: 0; max-width: 100%; }
+.dm-kb-q { overflow-wrap: anywhere; }
