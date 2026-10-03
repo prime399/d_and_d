@@ -3,13 +3,21 @@
 // When Sanity Context isn't configured, equivalent local tools over the same content keep the game playable.
 import { generateText, isStepCount, tool, type ToolSet } from 'ai';
 import { createMCPClient } from '@ai-sdk/mcp';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
 import { loadContent } from '@/game/content/loader';
 import { acquireSlot, clientIp, dailyLimit, globalLimit, rateLimit } from '@/lib/ratelimit';
 
 export const maxDuration = 60;
 
-const MODEL = process.env.DM_MODEL ?? 'anthropic/claude-haiku-4.5';
+// Inference via OpenRouter. Override the model with DM_MODEL (any OpenRouter slug with tool support).
+const MODEL = process.env.DM_MODEL || 'nvidia/nemotron-3.5-lightning';
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  compatibility: 'strict',
+  // Optional OpenRouter app attribution headers.
+  headers: { 'HTTP-Referer': process.env.OPENROUTER_SITE_URL ?? 'https://goblin-warren.vercel.app', 'X-Title': 'The Goblin Warren' },
+});
 
 const MAX_BODY = 16_000;
 
@@ -282,7 +290,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: 'Bad request' }, { status: 400 });
   const body = parsed.data;
 
-  const hasModel = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || req.headers.get('x-vercel-oidc-token'));
+  const hasModel = Boolean(process.env.OPENROUTER_API_KEY);
   if (!hasModel) {
     const res: DmResponse = { text: offlineText(body), lookups: [], ids: body.cited, model: null, backend: 'offline' };
     return Response.json(res);
@@ -335,7 +343,7 @@ async function generate(body: z.infer<typeof Body>): Promise<Response> {
 
   try {
     const { text } = await generateText({
-      model: MODEL,
+      model: openrouter(MODEL),
       instructions: SYSTEM(body.srdVersion),
       prompt,
       tools,
