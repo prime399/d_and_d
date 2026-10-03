@@ -1,0 +1,40 @@
+import type { LevelDef } from './types';
+
+// The Collapsed Gate: rubble-choked courtyard, guardroom (lair 1) to the west,
+// gatehouse (lair 2) guarding the exit, storeroom and barracks loops on the flanks.
+export const LEVEL1: LevelDef = {
+  title: 'The Collapsed Gate',
+  rows: [
+    '####################D###################',
+    '###############..B.....B..##############',
+    '##..B...T..####...2...2...#####..TC.KK##',
+    '##.1..1.........2.......2............K##',
+    '##..1..R..................#####.......##',
+    '##.........####...........#####....G..##',
+    '##.1..1....########...#########.......##',
+    '##.........########...#########.......##',
+    '#####..############...#########KK.....##',
+    '#####..####.B..T........T.RT.#####..####',
+    '#####..####.R....R...........#####..####',
+    '#####..####...P.....R....P..........####',
+    '#####...........R...L..R............####',
+    '#####........R.............R.#####..####',
+    '#####..####...P.......R..P...#####..####',
+    '#####..####..................#####..####',
+    '#####..###########....############..####',
+    '##.......C########....########........##',
+    '##........########....########...X....##',
+    '##L.......#####TT......T.#####.......L##',
+    '##.......................#####..G.....##',
+    '##....................................##',
+    '##........#####...HHH..........X....C.##',
+    '##KK......#####..R.E.....#####........##',
+    '###############..........###############',
+    '########################################',
+  ],
+  lore: [
+    { title: 'The Keystone of the Gate', text: 'A split keystone still bears the warden\'s crest, half buried in grit. Someone has scratched a grinning goblin face over the old sigil.' },
+    { title: 'Barracks Tally Stone', text: 'Rows of tally marks run down the stone, each one a night the garrison held. The last column ends mid-stroke.' },
+    { title: 'Ossuary Marker', text: 'Here rest the gate guards who would not yield. Their names have been chipped away by small, impatient blades.' },
+  ],
+};
