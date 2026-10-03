@@ -1643,7 +1643,7 @@ export class GameController {
       this.lightIds(data.ids);
       if (data.lookups.length) this.bumpStat('lookups', data.lookups.length);
     } catch (err) {
-      this.patchMsg(msgId, { text: `*The DM's voice is lost in the dark* (${(err as Error).message})`, pending: false });
+      this.patchMsg(msgId, { text: `The DM's voice is lost in the dark. (${(err as Error).message})`, pending: false });
     } finally {
       if (!isAsk) this.dmInFlight = false;
       this.update({ dmThinking: false });
