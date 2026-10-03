@@ -9,7 +9,7 @@ import {
 import type { Citation, GameContent, Monster, Room, Spell, SrdVersion } from './content/types';
 import { getArena, type ArenaMap } from './maps';
 import type { DungeonScene, UnitView } from './scenes/DungeonScene';
-import { audio, type Track } from './audio';
+import { audio } from './audio';
 import type { DiceShow } from '@/components/DiceOverlay';
 import type { DmLookup, DmResponse } from '@/app/api/dm/route';
 
