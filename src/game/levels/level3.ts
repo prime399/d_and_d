@@ -1,0 +1,41 @@
+import type { LevelDef } from './types';
+
+// The Bone Crypt: pillared nave at the heart, west ossuary (lair 1), upper chapel (lair 2), ghoul larder (lair 3) by the exit; niche gallery and embalming room loop around the south.
+export const LEVEL3: LevelDef = {
+  title: "The Bone Crypt",
+  rows: [
+    '######################################D#####',
+    '######################################.#####',
+    '##..T.....X###........B.......###.........##',
+    '##.....1...###..2.......2..............X..##',
+    '##.1................P..P...P......3.....3.##',
+    '##...1.............2....2.....###.........##',
+    '##.........###.....X..........###....3....##',
+    '##..1..1...#########....#########.........##',
+    '##.X.......#########....#########.3.....3X##',
+    '#####..#####.T..B..........BX.T.####..######',
+    '#####..#####..P...P..X...P...P..####..######',
+    '#####..#####....................####..######',
+    '#####..#####.X...X...L....X...X.......######',
+    '#####.................................######',
+    '#####.........P...P......P...P..####..######',
+    '#####..#####...X................####..######',
+    '#####..#############....############..######',
+    '##C.......L#########..X.#########KK...T..C##',
+    '##.......X.#########....#########.........##',
+    '##.........#########....#########.........##',
+    '##.........#########....#########..X......##',
+    '##.........######.T......T.######.........##',
+    '##............S.........X.................##',
+    '##..X.......S.......HHH.................X.##',
+    '##C.......G######....E.....######L.......G##',
+    '#################.X........#################',
+    '############################################',
+    '############################################',
+  ],
+  lore: [
+    { title: "Niche of the Nameless", text: "Every skull here faces the wall, as if ashamed. One alone stares outward, and its jaw has been wired shut." },
+    { title: "The Nave Inscription", text: "Walk softly, the carving reads, for the sleepers count your steps. Fresh scratches beneath it keep a tally that is still rising." },
+    { title: "Embalmer's Ledger", text: "A list of names, each struck through once when buried and again when it walked. The final line is blank and waiting." },
+  ],
+};
