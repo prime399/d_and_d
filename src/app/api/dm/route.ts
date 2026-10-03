@@ -114,7 +114,7 @@ function localTools(content: Awaited<ReturnType<typeof loadContent>>, lookups: D
 /** Tools the model may use, per endpoint. Anything else the MCP server lists is dropped. */
 const ALLOWED_TOOLS: Record<string, string[]> = {
   'sanity-context': ['groq_query', 'schema_explorer', 'array_field_reader', 'initial_context'],
-  'knowledge-base': ['knowledge_base_read'],
+  'knowledge-base': ['knowledge_base_search', 'knowledge_base_read'],
 };
 const GROQ_SCOPE = '_type in ["rule","condition","spell","monster"]';
 
