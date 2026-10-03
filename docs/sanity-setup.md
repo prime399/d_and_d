@@ -183,3 +183,17 @@ hides them from unauthenticated reads. That doesn't matter here: the dataset is
 private and every reader (app, MCP, KB) authenticates. The Context docs don't
 document any restriction on dotted IDs. If KB indexing or `groq_query` ever skips
 them, check `count(*[_type=="rule"])` through the MCP against the direct API count above.
+
+## Security
+
+- All tokens are server-only. They are read in `src/app/api/dm/route.ts` and never reach the browser, and the
+  route only sends the Sanity MCP endpoints on `https://api.sanity.io`.
+- Use a read-only **Viewer** project token for `SANITY_READ_TOKEN` (GROQ reads). `SANITY_WRITE_TOKEN` stays local.
+- The org token (`SANITY_CONTEXT_TOKEN` / `SANITY_KB_TOKEN`) needs the **Context Viewer** role only, nothing broader.
+- Keep the dataset **private**.
+- The DM route allowlists MCP tools (`groq_query`, `schema_explorer`, `array_field_reader`, `initial_context`,
+  `knowledge_base_read`), scopes GROQ with `tools=` and `groqFilter=_type in ["rule","condition","spell","monster"]`,
+  rejects GROQ without `_type` or touching `drafts.` / `_id in path(`, and treats all browser text as data-only blocks.
+- Built-in limits are per instance and best-effort (20 req/min and 300/day per IP, 120 req/min globally,
+  4 concurrent generations, 16 KB bodies, 25 s timeout). In production also add a **Vercel Firewall rate-limit rule**
+  on `/api/dm` (e.g. 20 requests / 60 s per IP).
