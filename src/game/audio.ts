@@ -89,7 +89,7 @@ class AudioManager {
   }
 
   /** Synth blips (no asset needed): hit, crit, miss, heal, spell, step, death, ui. */
-  blip(kind: 'hit' | 'crit' | 'miss' | 'heal' | 'spell' | 'death' | 'ui' | 'door' | 'chest') {
+  blip(kind: 'hit' | 'crit' | 'miss' | 'heal' | 'spell' | 'death' | 'ui' | 'door' | 'chest' | 'gold' | 'ambush' | 'step') {
     if (this.muted || !this.ctx || this.ctx.state === 'closed') return;
     try {
       this.synth(kind);
@@ -139,6 +139,9 @@ class AudioManager {
       case 'ui': tone('square', 660, 660, 0.04, 0, 0.25); break;
       case 'door': noise(0.4, 0.6); tone('sine', 90, 60, 0.5, 0, 0.6); break;
       case 'chest': [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f, 0.08, i * 0.06, 0.25)); break;
+      case 'gold': [1319, 1760, 2093].forEach((f, i) => tone('triangle', f, f, 0.07, i * 0.045, 0.3)); break;
+      case 'ambush': noise(0.25, 0.8); tone('sawtooth', 110, 220, 0.35, 0, 0.5); tone('square', 440, 330, 0.3, 0.12, 0.35); break;
+      case 'step': noise(0.04, 0.15); break;
     }
   }
 }

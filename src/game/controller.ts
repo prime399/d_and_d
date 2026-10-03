@@ -3,10 +3,10 @@
 import {
   attack, castSpell, createCombat, currentCombatant, distance, dodge, endTurn, getCombatant, hasLineOfSight,
   livingCombatants, movableTiles, move, mulberry32, planMonsterTurn, syncHeroFromCombatant, tilesInRadius, usePotion,
-  findPath, posKey, effectiveSpeed, isIncapacitated,
-  type ActionResult, type Combatant, type GameEvent, type GameState, type HeroProgress, type Pos, type Rng,
+  findPath, posKey, samePos, effectiveSpeed, isIncapacitated, heroToCombatant, monsterToCombatant, roll,
+  type ActionResult, type Combatant, type GameEvent, type GameState, type Grid, type HeroProgress, type Pos, type Rng,
 } from './engine';
-import type { Citation, GameContent, Room, Spell, SrdVersion } from './content/types';
+import type { Citation, GameContent, Monster, Room, Spell, SrdVersion } from './content/types';
 import { getArena, type ArenaMap } from './maps';
 import type { DungeonScene, UnitView } from './scenes/DungeonScene';
 import { audio, type Track } from './audio';
@@ -15,6 +15,41 @@ import type { DmLookup, DmResponse } from '@/app/api/dm/route';
 
 export type Phase = 'title' | 'playing' | 'room-cleared' | 'victory' | 'defeat';
 export type Mode = { kind: 'move' } | { kind: 'attack'; index: number } | { kind: 'spell'; slug: string };
+/** Exploration (free movement, no turns) vs. a woken lair's turn-based combat. Phase stays 'playing' in both. */
+export type PlayMode = 'explore' | 'combat';
+
+export interface Objective {
+  lairs: { id: number; cleared: boolean; awake: boolean; monsters: number }[];
+  doorOpen: boolean;
+  goldFound: number;
+  loreFound: number;
+  loreTotal: number;
+}
+
+/** The object the leader can interact with right now (E / Enter / Interact button). */
+export interface Interactable {
+  kind: 'lore' | 'chest' | 'gold' | 'door';
+  label: string;
+  pos: Pos;
+}
+
+/** Contract A fields, read defensively so old single-room arenas keep working. */
+type LairDef = { id: number; spawns: Pos[]; aggro: number };
+type ArenaX = ArenaMap & Partial<{
+  title: string; entrance: Pos; lairs: LairDef[]; torches: Pos[]; crates: Pos[]; bones: Pos[]; rubble: Pos[];
+  pits: Pos[]; gold: Pos[]; lore: { pos: Pos; title: string; text: string }[];
+}>;
+
+/** A lair at runtime: its monsters wait on their spawn tiles until a hero comes near. */
+interface LairRt {
+  id: number;
+  spawns: Pos[];
+  aggro: number;
+  /** `c` keeps a level-unique id/name so sprites stay stable when the lair wakes */
+  monsters: { def: Monster; c: Combatant }[];
+  cleared: boolean;
+  awake: boolean;
+}
 
 export interface ChatMessage {
   id: number;
@@ -68,11 +103,11 @@ export const HOTKEYS: Record<string, string> = {
   Enter: 'End turn',
   Escape: 'Cancel',
   'Arrows / W A S': 'Step one tile',
+  Tab: 'Switch leader (exploring)',
 };
 
 export type HotkeyOption = { key: string; label: string; mode: Mode; disabled: boolean };
 
-const TRACKS: Track[] = ['title', 'explore', 'combat', 'boss', 'victory'];
 const DM_MIN_GAP = 6000;
 /** Pacing (ms). Monster turns aim for ~1.5–2.5s. */
 const PACE = {
@@ -112,6 +147,12 @@ export interface View {
   units: Record<string, UnitDisplay>;
   turnBanner: TurnBanner | null;
   lastEvent: LastEvent | null;
+  /** 'explore' between fights; 'combat' while a woken lair fights (turn-based). */
+  playMode: PlayMode;
+  /** hero moved by clicks / arrows while exploring */
+  leaderId: string | null;
+  objective: Objective;
+  interactable: Interactable | null;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -140,6 +181,17 @@ export class GameController {
   private seq = 1;
   private litCounter = 1;
   private titles: Record<string, string>;
+  // level state (survives combats, reset per level)
+  private grid: Grid = { width: 1, height: 1, walls: [false] };
+  private lairs: LairRt[] = [];
+  private goldTaken = new Set<string>();
+  private loreRead = new Set<string>();
+  private goldFound = 0;
+  private doorOpen = false;
+  private walking = false;
+  private walkTarget: { to: Pos; interactAt?: Pos } | null = null;
+  private party: string[] = [];
+  private roomStartGold = 0;
 
   constructor(readonly content: GameContent) {
     this.rooms = [...content.rooms].sort((a, b) => a.order - b.order);
@@ -150,6 +202,8 @@ export class GameController {
       dice: null, hover: null, toast: null, srdVersion: '2024', dmThinking: false,
       stats: { rolls: 0, crits: 0, kills: 0, rulesCited: 0, lookups: 0 },
       units: {}, turnBanner: null, lastEvent: null,
+      playMode: 'explore', leaderId: null, interactable: null,
+      objective: { lairs: [], doorOpen: false, goldFound: 0, loreFound: 0, loreTotal: 0 },
     };
   }
 
@@ -162,6 +216,7 @@ export class GameController {
 
   private update(patch: Partial<View> = {}) {
     this.view = { ...this.view, ...patch };
+    this.view.objective = this.objectiveNow();
     this.listeners.forEach((l) => l());
   }
 
@@ -175,7 +230,11 @@ export class GameController {
 
   /** Optional scene hooks other agents may add. */
   private get sceneX() {
-    return this.scene as (DungeonScene & { focusUnit?: (id: string | null) => void; highlightUnit?: (id: string | null) => void }) | null;
+    return this.scene as (DungeonScene & {
+      focusUnit?: (id: string | null) => void; highlightUnit?: (id: string | null) => void;
+      follow?: (id: string | null) => void; revealAround?: (positions: Pos[], radius: number) => void;
+      pickup?: (pos: Pos) => void; setMode?: (mode: PlayMode) => void;
+    }) | null;
   }
 
   attachScene(scene: DungeonScene) {
@@ -193,6 +252,7 @@ export class GameController {
       audio.blip('door');
       this.progress = {};
       this.openedChests.clear();
+      this.goldFound = 0;
       this.update({
         phase: 'playing', roomIndex: 0, chat: [], rulings: [], lit: new Map(),
         stats: { rolls: 0, crits: 0, kills: 0, rulesCited: 0, lookups: 0 },
@@ -217,40 +277,33 @@ export class GameController {
     }
     if (!entered) return this.update({ busy: false });
     await sleep(600);
-    await this.safe('runTurns', () => this.runTurns());
+    // a lair right by the entrance ambushes immediately
+    await this.safe('explore', async () => this.checkWake());
   }
 
   private setupRoom(index: number): boolean {
     const room = this.rooms[index];
     if (!room || !this.scene) return false;
-    const arena = getArena(room.order);
+    const arena = getArena(room.order) as ArenaX;
     this.arena = arena;
-    // chests are keyed by tile, so they must not carry over between rooms
+    // chests, gold and lore are keyed by tile, so they must not carry over between levels
     this.openedChests.clear();
-    const bySlug = new Map(this.content.monsters.map((m) => [m.slug, m]));
-    const occupied = new Set<string>();
-    const monsters: { monster: GameContent['monsters'][number]; pos: Pos }[] = [];
-    let spawnIdx = 0;
-    for (const g of room.encounter) {
-      const m = bySlug.get(g.monster);
-      if (!m) continue;
-      for (let i = 0; i < g.count; i++) {
-        let pos = arena.monsterSpawns[spawnIdx++];
-        if (!pos || occupied.has(posKey(pos))) pos = freeTileNear(arena, arena.monsterSpawns[0] ?? { x: 10, y: 2 }, occupied);
-        occupied.add(posKey(pos));
-        monsters.push({ monster: m, pos });
-      }
-    }
-    // Fallen heroes are stabilised between rooms at 1 HP.
+    this.goldTaken.clear();
+    this.loreRead.clear();
+    this.doorOpen = false;
+    this.walkTarget = null;
+    this.grid = levelGrid(arena);
+    this.lairs = this.buildLairs(room, arena);
+
+    // Fallen heroes are stabilised between levels at 1 HP.
     for (const p of Object.values(this.progress)) if (p.hp <= 0) p.hp = 1;
     this.roomStartProgress = structuredClone(this.progress);
+    this.roomStartGold = this.goldFound;
 
-    const grid = { width: arena.width, height: arena.height, walls: [...arena.walls] };
-    const state = createCombat(
-      this.content.heroes, monsters, arena.heroSpawns, grid,
-      { spells: this.content.spells, conditions: this.content.conditions }, this.rng,
-      Object.keys(this.progress).length ? structuredClone(this.progress) : undefined,
-    );
+    const spawns = arena.heroSpawns.length ? arena.heroSpawns : [arena.entrance ?? { x: 1, y: 1 }];
+    const heroes = this.content.heroes.map((h, i) => heroToCombatant(h, spawns[i] ?? freeTileNear(arena, spawns[0], new Set(spawns.map(posKey))), this.progress[h.slug]));
+    const state = this.exploreState(heroes);
+    this.party = heroes.map((h) => h.id);
 
     (this.scene.loadArena as (a: ArenaMap, title?: { index: number; name: string }) => void).call(this.scene, arena, { index, name: room.name });
     this.lastTurnKey = '';
@@ -258,18 +311,64 @@ export class GameController {
     this.recoverAttempts = 0;
     this.update({
       room, roomIndex: index, state, phase: 'playing', mode: { kind: 'move' }, focus: null,
-      busy: true, isPlayerTurn: false, activeId: null, turnBanner: null, lastEvent: null, units: unitsFrom(state),
+      busy: false, isPlayerTurn: false, activeId: null, turnBanner: null, lastEvent: null, units: unitsFrom(state),
+      playMode: 'explore', leaderId: this.party[0] ?? null,
     });
     this.syncUnits();
-    const fallback: Track = room.isBoss ? 'boss' : index % 2 ? 'explore' : 'combat';
-    audio.play(TRACKS.includes(room.music as Track) ? (room.music as Track) : fallback);
+    this.enterExploreView();
+    audio.play(room.isBoss ? 'boss' : 'explore');
 
-    this.say('system', `Room ${index + 1} of ${this.rooms.length}: ${room.name}`);
-    this.addCitations(state.citations, 'Initiative is rolled');
-    const order = state.order.map((id) => getCombatant(state, id)!).map((c) => `${c.name} ${c.initiative}`).join(', ');
-    this.queueBeat([`The party enters ${room.name}.`, `Initiative order: ${order}.`], []);
+    this.say('system', `Level ${index + 1} of ${this.rooms.length}: ${room.name}${arena.title && arena.title !== room.name ? ` (${arena.title})` : ''}`);
+    this.queueBeat([
+      `The party enters ${room.name}${arena.title && arena.title !== room.name ? `, ${arena.title}` : ''}. ${room.description}`,
+      `They explore freely; ${this.lairs.length} monster lair${this.lairs.length === 1 ? '' : 's'} lurk somewhere in the dark.`,
+    ], []);
     this.flushBeat(true);
     return true;
+  }
+
+  /** Expand the encounter into monsters and deal them round-robin to the lairs (boss to the last lair). */
+  private buildLairs(room: Room, arena: ArenaX): LairRt[] {
+    const defs: LairDef[] = (arena.lairs?.length ? arena.lairs : [{ id: 1, spawns: arena.monsterSpawns, aggro: 5 }])
+      .map((l) => ({ id: l.id, spawns: l.spawns, aggro: l.aggro ?? 5 }));
+    const bySlug = new Map(this.content.monsters.map((m) => [m.slug, m]));
+    const buckets: Monster[][] = defs.map(() => []);
+    let rr = 0;
+    room.encounter.forEach((g, gi) => {
+      const m = bySlug.get(g.monster);
+      if (!m) return;
+      for (let i = 0; i < g.count; i++) {
+        if (room.isBoss && gi === 0 && i === 0 && defs.length > 1) buckets[defs.length - 1].push(m);
+        else buckets[rr++ % (room.isBoss && defs.length > 1 ? defs.length - 1 : defs.length)].push(m);
+      }
+    });
+    const pool = room.encounter.map((g) => bySlug.get(g.monster)).filter((m): m is Monster => !!m);
+    const weakest = [...pool].sort((a, b) => a.cr - b.cr || a.hp - b.hp)[0];
+    const counts = new Map<string, number>();
+    const occupied = new Set<string>([...arena.heroSpawns].map(posKey));
+    return defs.map((d, li) => {
+      const list = buckets[li].length ? buckets[li] : weakest ? [weakest] : [];
+      const monsters = list.map((m, j) => {
+        let pos = d.spawns[j];
+        if (!pos || occupied.has(posKey(pos)) || this.grid.walls[pos.y * this.grid.width + pos.x]) {
+          pos = freeTileNear(arena, d.spawns[0] ?? arena.monsterSpawns[0] ?? { x: 2, y: 2 }, occupied, this.grid);
+        }
+        occupied.add(posKey(pos));
+        const n = counts.get(m.slug) ?? 0;
+        counts.set(m.slug, n + 1);
+        return { def: m, c: monsterToCombatant(m, pos, n) };
+      });
+      return { id: d.id, spawns: d.spawns, aggro: d.aggro, monsters, cleared: !monsters.length, awake: false };
+    });
+  }
+
+  /** A turn-less state holding just the party, so the HUD and DM keep reading view.state while exploring. */
+  private exploreState(heroes: Combatant[]): GameState {
+    return {
+      grid: this.grid, combatants: heroes, order: heroes.map((h) => h.id), turnIndex: 0, round: 1, log: [],
+      status: 'active', spells: Object.fromEntries(this.content.spells.map((x) => [x.slug, x])),
+      conditionNames: Object.fromEntries(this.content.conditions.map((x) => [x.slug, x.name])), rng: this.rng, citations: [],
+    };
   }
 
   async nextRoom() {
@@ -291,6 +390,7 @@ export class GameController {
     this.transitioning = true;
     try {
       this.progress = structuredClone(this.roomStartProgress);
+      this.goldFound = this.roomStartGold;
       await this.scene?.fadeOut();
     } catch (err) {
       console.error('[game] fade failed', err);
@@ -326,7 +426,7 @@ export class GameController {
     } catch {
       /* scene may be gone */
     }
-    if (!s || this.view.phase !== 'playing') return this.update({ busy: false });
+    if (!s || this.view.phase !== 'playing' || this.view.playMode === 'explore') return this.update({ busy: false });
     if (++this.recoverAttempts > 6) {
       // give up gracefully: hand control to whoever's turn it is
       this.update({ busy: false, isPlayerTurn: s.status === 'active' && currentCombatant(s).side === 'hero' });
@@ -363,6 +463,7 @@ export class GameController {
     this.scene?.setActive(cur.id);
     // enemy turns: camera follows the monster; hero turns return to the full-room view
     this.sceneX?.focusUnit?.(cur.side === 'monster' ? cur.id : null);
+    this.sceneX?.follow?.(cur.id);
     this.update({ turnBanner: { text: `${name}'s turn`, side: cur.side, key: this.seq++ }, activeId: cur.id });
   }
 
@@ -422,26 +523,488 @@ export class GameController {
     state.combatants.filter((c) => c.side === 'hero').forEach((c) => (this.progress[c.refSlug] = syncHeroFromCombatant(c)));
     this.scene?.clearOverlay();
     this.update({ turnBanner: null });
-    if (state.status === 'victory') {
-      const last = this.view.roomIndex >= this.rooms.length - 1;
-      // short rest: each hero recovers a third of their HP
-      state.combatants.filter((c) => c.side === 'hero' && !c.dead).forEach((c) => {
-        const p = this.progress[c.refSlug];
-        p.hp = Math.min(c.maxHp, p.hp + Math.ceil(c.maxHp / 3));
-      });
-      this.flushBeat(true);
-      if (last) {
-        audio.play('victory');
-        this.update({ phase: 'victory', busy: false, isPlayerTurn: false });
-      } else {
-        this.scene?.openDoor();
-        audio.blip('chest');
-        this.update({ phase: 'room-cleared', busy: false, isPlayerTurn: false });
-      }
-    } else {
+    if (state.status !== 'victory') {
       this.flushBeat(true);
       this.update({ phase: 'defeat', busy: false, isPlayerTurn: false });
+      return;
     }
+    const woken = this.lairs.filter((l) => l.awake && !l.cleared);
+    woken.forEach((l) => { l.cleared = true; l.awake = false; });
+    // short rest: fallen heroes are stabilised at 1 HP, the rest recover a third of their HP
+    const downed = new Set<string>();
+    state.combatants.filter((c) => c.side === 'hero').forEach((c) => {
+      const p = this.progress[c.refSlug];
+      if (p.hp <= 0) {
+        p.hp = 1;
+        downed.add(c.id);
+      } else p.hp = Math.min(c.maxHp, p.hp + Math.ceil(c.maxHp / 3));
+    });
+    const left = this.lairs.filter((l) => !l.cleared).length;
+    this.queueBeat([
+      `The lair falls silent. The party catches its breath${downed.size ? ' and drags its fallen back to their feet' : ''}.`,
+      left ? `${left} lair${left === 1 ? '' : 's'} still lurk in the dark.` : 'No monster lair remains on this level.',
+    ]);
+    this.flushBeat(true);
+    this.returnToExplore(state, downed);
+    if (!left) {
+      if (this.view.roomIndex >= this.rooms.length - 1) {
+        audio.play('victory');
+        this.update({ phase: 'victory', busy: false, isPlayerTurn: false });
+        return;
+      }
+      this.openExit();
+      return;
+    }
+    await sleep(400);
+    // the fight may have dragged the party into another lair's range
+    await this.checkWake();
+  }
+
+  /** Back to free exploration with the heroes where the fight left them. */
+  private returnToExplore(state: GameState, downed = new Set<string>()) {
+    const at = new Map(state.combatants.filter((c) => c.side === 'hero').map((c) => [c.refSlug, c.pos]));
+    const heroes = this.content.heroes.map((h, i) => heroToCombatant(h, at.get(h.slug) ?? this.arena!.heroSpawns[i] ?? { x: 1, y: 1 }, this.progress[h.slug]));
+    const s = this.exploreState(heroes);
+    const leader = heroes.find((h) => h.id === this.view.leaderId && !h.dead) ?? heroes.find((h) => !h.dead);
+    this.update({
+      state: s, playMode: 'explore', units: unitsFrom(s), busy: false, isPlayerTurn: false, mode: { kind: 'move' },
+      leaderId: leader?.id ?? null, activeId: leader?.id ?? null, turnBanner: null,
+    });
+    // revived heroes need fresh sprites (their old ones played the death animation)
+    if (downed.size) this.syncUnits(downed);
+    this.syncUnits();
+    if (!this.rooms[this.view.roomIndex]?.isBoss) audio.play('explore');
+    this.enterExploreView();
+  }
+
+  private enterExploreView() {
+    const id = this.view.leaderId;
+    this.sceneX?.setMode?.('explore');
+    this.scene?.setActive(id);
+    this.sceneX?.focusUnit?.(null);
+    this.sceneX?.follow?.(id);
+    this.scene?.clearOverlay();
+    this.reveal();
+    this.refreshInteract();
+  }
+
+  // ---------------- exploration ----------------
+
+  private leader(): Combatant | null {
+    const s = this.view.state;
+    if (!s || this.view.playMode !== 'explore') return null;
+    return s.combatants.find((c) => c.id === this.view.leaderId && !c.dead) ?? s.combatants.find((c) => c.side === 'hero' && !c.dead) ?? null;
+  }
+
+  private partyAlive(): Combatant[] {
+    return (this.view.state?.combatants ?? []).filter((c) => c.side === 'hero' && !c.dead);
+  }
+
+  /** Tiles held by sleeping monsters of lairs not yet cleared or awake. */
+  private sleeperTiles(): Set<string> {
+    const out = new Set<string>();
+    for (const l of this.lairs) if (!l.cleared && !l.awake) l.monsters.forEach((m) => out.add(posKey(m.c.pos)));
+    return out;
+  }
+
+  private reveal() {
+    this.sceneX?.revealAround?.(this.partyAlive().map((c) => ({ ...c.pos })), 7);
+  }
+
+  /** Explore mode: pick the hero moved by clicks and arrows. */
+  setLeader(heroId: string) {
+    if (this.view.playMode !== 'explore' || this.view.phase !== 'playing') return;
+    const h = this.view.state?.combatants.find((c) => c.id === heroId && c.side === 'hero' && !c.dead);
+    if (!h || h.id === this.view.leaderId) return;
+    audio.blip('ui');
+    this.walkTarget = null;
+    this.update({ leaderId: h.id, activeId: h.id });
+    this.scene?.setActive(h.id);
+    this.sceneX?.follow?.(h.id);
+    this.refreshInteract();
+  }
+
+  private async exploreClick(p: Pos) {
+    const s = this.view.state;
+    const L = this.leader();
+    if (!s || !L || this.view.busy || this.view.phase !== 'playing') return;
+    const hero = s.combatants.find((h) => !h.dead && samePos(h.pos, p));
+    if (hero) {
+      if (hero.id !== L.id) this.setLeader(hero.id);
+      return;
+    }
+    const obj = this.objectAt(p);
+    if (obj) {
+      if (obj.kind === 'gold') return this.walkTo(p);
+      if (distance(L.pos, p) <= 1) return this.doInteract(obj);
+      const adj = this.approachTile(L.pos, p);
+      if (!adj) return this.toast('There is no way to reach that.');
+      return this.walkTo(adj, p);
+    }
+    const door = this.arena?.door;
+    if (door && samePos(door, p)) {
+      const left = this.lairs.filter((l) => !l.cleared).length;
+      return this.toast(`The exit is sealed. Clear ${left} more lair${left === 1 ? '' : 's'} to open it.`);
+    }
+    if (this.sleeperTiles().has(posKey(p))) {
+      const adj = this.approachTile(L.pos, p);
+      return adj ? this.walkTo(adj) : undefined;
+    }
+    if (this.grid.walls[p.y * this.grid.width + p.x]) return;
+    return this.walkTo(p);
+  }
+
+  /** The free tile next to `target` that is quickest to reach from `from`. */
+  private approachTile(from: Pos, target: Pos): Pos | null {
+    const occ = this.sleeperTiles();
+    let best: { pos: Pos; len: number } | null = null;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const t = { x: target.x + dx, y: target.y + dy };
+      if (samePos(t, from)) return t;
+      const path = findPath(this.grid, from, t, occ);
+      if (path && (!best || path.length < best.len)) best = { pos: t, len: path.length };
+    }
+    return best?.pos ?? null;
+  }
+
+  /** Walk the leader toward `to` one tile at a time (new clicks retarget the walk), followers in tow. */
+  private async walkTo(to: Pos, interactAt?: Pos) {
+    this.walkTarget = { to, interactAt };
+    if (this.walking) return;
+    this.walking = true;
+    try {
+      for (let guard = 0; guard < 300 && this.walkTarget; guard++) {
+        if (this.view.playMode !== 'explore' || this.view.phase !== 'playing') break;
+        const L = this.leader();
+        const tgt = this.walkTarget;
+        if (!L) break;
+        if (samePos(L.pos, tgt.to)) {
+          this.walkTarget = null;
+          const obj = tgt.interactAt && this.objectAt(tgt.interactAt);
+          if (obj) await this.doInteract(obj);
+          break;
+        }
+        // followers are not obstacles: the leader swaps places with them
+        const path = findPath(this.grid, L.pos, tgt.to, this.sleeperTiles());
+        if (!path?.length) {
+          this.walkTarget = null;
+          this.toast('There is no way through.');
+          break;
+        }
+        await this.stepParty(path[0]);
+        if (await this.afterStep()) break;
+      }
+    } catch (err) {
+      console.error('[game] walk failed', err);
+    } finally {
+      this.walking = false;
+      if (this.view.playMode === 'explore') this.walkTarget = null;
+    }
+  }
+
+  /** Leader steps to `next`; each follower closes up on the hero ahead of it. */
+  private async stepParty(next: Pos) {
+    const L = this.leader()!;
+    const followers = this.partyAlive().filter((c) => c.id !== L.id).sort((a, b) => this.party.indexOf(a.id) - this.party.indexOf(b.id));
+    const old = new Map([L, ...followers].map((c) => [c.id, { ...c.pos }]));
+    const moves: { id: string; to: Pos }[] = [];
+    const sleepers = this.sleeperTiles();
+    const swapped = followers.find((f) => samePos(f.pos, next));
+    if (swapped) {
+      swapped.pos = { ...old.get(L.id)! };
+      moves.push({ id: swapped.id, to: swapped.pos });
+    }
+    L.pos = { ...next };
+    moves.push({ id: L.id, to: L.pos });
+    let pred: Combatant = L;
+    for (const f of followers) {
+      if (f !== swapped && distance(f.pos, pred.pos) > 1) {
+        const occ = new Set([...sleepers, ...this.partyAlive().filter((c) => c !== f).map((c) => posKey(c.pos))]);
+        const path = findPath(this.grid, f.pos, old.get(pred.id)!, occ) ?? findPath(this.grid, f.pos, pred.pos, occ, true);
+        const step = path?.[0];
+        if (step && !occ.has(posKey(step))) {
+          f.pos = { ...step };
+          moves.push({ id: f.id, to: f.pos });
+        }
+      }
+      pred = f;
+    }
+    await Promise.all(moves.map((m) => this.scene?.moveAlong(m.id, [m.to])));
+    const units = { ...this.view.units };
+    for (const m of moves) if (units[m.id]) units[m.id] = { ...units[m.id], pos: { ...m.to } };
+    this.update({ units });
+    this.syncUnits();
+  }
+
+  /** Post-step checks. Returns true when the walk must stop (combat or level exit). */
+  private async afterStep(): Promise<boolean> {
+    this.reveal();
+    const L = this.leader();
+    if (!L) return true;
+    const gold = this.arena?.gold?.find((g) => samePos(g, L.pos) && !this.goldTaken.has(posKey(g)));
+    if (gold) this.takeGold(gold);
+    this.refreshInteract();
+    const door = this.arena?.door;
+    if (this.doorOpen && door && distance(L.pos, door) <= 1) {
+      this.finishLevel();
+      return true;
+    }
+    return this.checkWake();
+  }
+
+  /** Wakes any lair a hero can see within its aggro radius; starts combat. */
+  private async checkWake(): Promise<boolean> {
+    if (this.view.playMode !== 'explore' || this.view.phase !== 'playing') return false;
+    const heroes = this.partyAlive();
+    const tiles = (l: LairRt) => [...l.monsters.map((m) => m.c.pos), ...l.spawns];
+    const near = (l: LairRt, los: boolean) => tiles(l).some((t) => heroes.some((h) => distance(h.pos, t) <= l.aggro && (!los || hasLineOfSight(this.grid, h.pos, t))));
+    const first = this.lairs.find((l) => !l.cleared && near(l, true));
+    if (!first) return false;
+    const woken = this.lairs.filter((l) => !l.cleared && (l === first || near(l, false)));
+    this.walkTarget = null;
+    await this.startCombat(woken);
+    return true;
+  }
+
+  private async startCombat(woken: LairRt[]) {
+    const prev = this.view.state!;
+    const heroes = prev.combatants.filter((c) => c.side === 'hero');
+    heroes.forEach((c) => (this.progress[c.refSlug] = syncHeroFromCombatant(c)));
+    woken.forEach((l) => (l.awake = true));
+    const list = woken.flatMap((l) => l.monsters);
+    // sleeping monsters of other lairs stand their ground as obstacles
+    const grid: Grid = { width: this.grid.width, height: this.grid.height, walls: [...this.grid.walls] };
+    for (const l of this.lairs) if (!l.cleared && !l.awake) l.monsters.forEach((m) => (grid.walls[m.c.pos.y * grid.width + m.c.pos.x] = true));
+    const at = new Map(heroes.map((h) => [h.refSlug, h.pos]));
+    const heroPos = this.content.heroes.map((h, i) => ({ ...(at.get(h.slug) ?? heroes[i]?.pos ?? { x: 1, y: 1 }) }));
+    const state = createCombat(
+      this.content.heroes, list.map((m) => ({ monster: m.def, pos: { ...m.c.pos } })), heroPos, grid,
+      { spells: this.content.spells, conditions: this.content.conditions }, this.rng, structuredClone(this.progress),
+    );
+    // keep the level-unique monster ids/names so sprites and the objective tracker stay stable
+    const nH = this.content.heroes.length;
+    const idOf = new Map(list.map((m, j) => [state.combatants[nH + j].id, m.c.id]));
+    state.order = state.order.map((id) => idOf.get(id) ?? id);
+    list.forEach((m, j) => {
+      state.combatants[nH + j].id = m.c.id;
+      state.combatants[nH + j].name = m.c.name;
+    });
+
+    this.lastTurnKey = '';
+    this.lastRound = 0;
+    this.recoverAttempts = 0;
+    this.scene?.clearOverlay();
+    this.update({
+      state, playMode: 'combat', units: unitsFrom(state), busy: true, isPlayerTurn: false, mode: { kind: 'move' },
+      interactable: null, activeId: null, turnBanner: { text: 'Ambush!', side: 'monster', key: this.seq++ },
+    });
+    this.syncUnits();
+    this.sceneX?.setMode?.('combat');
+    audio.blip('ambush');
+    audio.play(this.rooms[this.view.roomIndex]?.isBoss ? 'boss' : 'combat');
+    this.toast('Ambush!');
+    const names = list.map((m) => m.c.name).join(', ');
+    this.say('system', `Ambush! ${names} attack${list.length === 1 ? 's' : ''}.`);
+    this.addCitations(state.citations, 'Initiative is rolled');
+    const order = state.order.map((id) => getCombatant(state, id)!).map((c) => `${c.name} ${c.initiative}`).join(', ');
+    this.queueBeat([`Ambush! A monster lair wakes: ${names} burst from the dark and attack the party.`, `Initiative order: ${order}.`], []);
+    this.flushBeat(true);
+    await sleep(900);
+    await this.safe('runTurns', () => this.runTurns());
+  }
+
+  /** Lore stone, unopened chest, gold or open door at a tile. */
+  private objectAt(p: Pos): Interactable | null {
+    const a = this.arena;
+    if (!a) return null;
+    const k = posKey(p);
+    const lore = a.lore?.find((l) => posKey(l.pos) === k);
+    if (lore) return this.loreRead.has(k) ? null : { kind: 'lore', label: `Read "${lore.title}"`, pos: p };
+    if (a.chests.some((c) => posKey(c) === k)) return this.openedChests.has(k) ? null : { kind: 'chest', label: 'Open chest', pos: p };
+    if (a.gold?.some((g) => posKey(g) === k) && !this.goldTaken.has(k)) return { kind: 'gold', label: 'Pick up gold', pos: p };
+    if (a.door && this.doorOpen && posKey(a.door) === k) return { kind: 'door', label: 'Leave level', pos: p };
+    return null;
+  }
+
+  private refreshInteract() {
+    const L = this.leader();
+    let best: Interactable | null = null;
+    if (L) {
+      const rank = { door: 0, lore: 1, chest: 2, gold: 3 };
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const o = this.objectAt({ x: L.pos.x + dx, y: L.pos.y + dy });
+        if (o && (!best || rank[o.kind] < rank[best.kind])) best = o;
+      }
+    }
+    const cur = this.view.interactable;
+    if (cur?.kind !== best?.kind || (cur && best && !samePos(cur.pos, best.pos)) || cur?.label !== best?.label) this.update({ interactable: best });
+  }
+
+  /** Explore mode: use the object next to the leader (E / Enter / Interact button). */
+  async interact() {
+    if (this.view.playMode !== 'explore' || this.view.busy) return;
+    const it = this.view.interactable;
+    if (!it) return this.toast('Nothing to interact with here.');
+    await this.doInteract(it);
+  }
+
+  private async doInteract(it: Interactable) {
+    const L = this.leader();
+    const a = this.arena;
+    if (!L || !a || distance(L.pos, it.pos) > 1) return;
+    const k = posKey(it.pos);
+    if (it.kind === 'gold') {
+      this.takeGold(it.pos);
+    } else if (it.kind === 'chest') {
+      if (this.openedChests.has(k)) return;
+      this.openedChests.add(k);
+      L.potions = (L.potions ?? 0) + 1;
+      this.scene?.openChest(it.pos);
+      audio.blip('chest');
+      this.toast(`${L.name} finds a Potion of Healing!`);
+      this.queueBeat([`${L.name} pries open a chest and finds a Potion of Healing.`]);
+      this.flushBeat();
+      this.log(`${L.name} finds a Potion of Healing.`);
+    } else if (it.kind === 'lore') {
+      const lore = a.lore?.find((l) => posKey(l.pos) === k);
+      if (!lore || this.loreRead.has(k)) return;
+      this.loreRead.add(k);
+      audio.blip('spell');
+      this.toast(`Lore stone: ${lore.title}`);
+      this.log(`${L.name} reads the lore stone "${lore.title}": ${lore.text}`);
+      this.queueBeat([`The party reads the lore stone "${lore.title}": ${lore.text}`]);
+      this.flushBeat(true);
+    } else if (it.kind === 'door') {
+      this.finishLevel();
+      return;
+    }
+    this.update();
+    this.refreshInteract();
+  }
+
+  private takeGold(p: Pos) {
+    const k = posKey(p);
+    if (this.goldTaken.has(k)) return;
+    this.goldTaken.add(k);
+    const amount = roll('3d6', this.rng).total;
+    this.goldFound += amount;
+    this.sceneX?.pickup?.(p);
+    audio.blip('gold');
+    this.toast(`+${amount} gold`);
+    this.log(`The party scoops up ${amount} gold pieces (${this.goldFound} gp total).`);
+    this.queueBeat([`The party scoops up ${amount} gold pieces from the floor.`]);
+    this.update();
+  }
+
+  private openExit() {
+    if (this.doorOpen) return;
+    this.doorOpen = true;
+    const room = this.view.room;
+    if (!this.arena?.door) {
+      this.update();
+      return this.finishLevel();
+    }
+    this.scene?.openDoor();
+    audio.blip('door');
+    this.toast('Every lair is cleared. The exit door grinds open.');
+    this.queueBeat([`With every lair in ${room?.name ?? 'the level'} cleared, the exit door grinds open.`]);
+    this.flushBeat(true);
+    this.update();
+    this.refreshInteract();
+    const L = this.leader();
+    if (L && distance(L.pos, this.arena.door) <= 1) this.finishLevel();
+  }
+
+  private finishLevel() {
+    if (this.view.phase !== 'playing') return;
+    this.walkTarget = null;
+    this.partyAlive().forEach((c) => (this.progress[c.refSlug] = syncHeroFromCombatant(c)));
+    audio.blip('chest');
+    if (this.view.roomIndex >= this.rooms.length - 1) {
+      audio.play('victory');
+      this.update({ phase: 'victory', busy: false, isPlayerTurn: false, interactable: null });
+    } else {
+      this.update({ phase: 'room-cleared', busy: false, isPlayerTurn: false, interactable: null });
+    }
+  }
+
+  private async explorePotion() {
+    const c = this.leader();
+    if (!c || this.view.busy) return;
+    const first = c.name.split(' ')[0];
+    if (!(c.potions ?? 0)) return this.toast('No potions left.');
+    if (c.hp >= c.maxHp) return this.toast(`${first} is at full HP.`);
+    this.update({ busy: true });
+    try {
+      c.potions = (c.potions ?? 0) - 1;
+      const h = roll('2d4+2', this.rng);
+      await this.showDice({
+        label: `${c.name} · Potion of Healing`, sides: h.sides, faces: h.rolls, total: h.total,
+        modifier: h.total - h.rolls.reduce((x, y) => x + y, 0), outcome: 'none', side: 'hero', kind: 'heal',
+      }, PACE.dmgHero);
+      const before = c.hp;
+      c.hp = Math.min(c.maxHp, c.hp + h.total);
+      this.scene?.hitFx(c.id, c.hp - before, false, 'heal');
+      audio.blip('heal');
+      this.update({ units: unitsFrom(this.view.state!) });
+      this.syncUnits();
+      this.log(`${c.name} drinks a Potion of Healing and regains ${c.hp - before} HP.`);
+      this.queueBeat([`${c.name} drinks a Potion of Healing and regains ${c.hp - before} HP.`]);
+    } finally {
+      this.update({ busy: false });
+    }
+  }
+
+  private objectiveNow(): Objective {
+    const s = this.view.state;
+    const inFight = this.view.playMode === 'combat' && s;
+    return {
+      lairs: this.lairs.map((l) => ({
+        id: l.id, cleared: l.cleared, awake: l.awake,
+        monsters: l.cleared ? 0 : l.monsters.filter((m) => !(inFight && l.awake && (getCombatant(s, m.c.id)?.dead ?? false))).length,
+      })),
+      doorOpen: this.doorOpen, goldFound: this.goldFound, loreFound: this.loreRead.size, loreTotal: this.arena ? ((this.arena as ArenaX).lore?.length ?? 0) : 0,
+    };
+  }
+
+  // ---------------- debug (playtest agents) ----------------
+
+  /** Marks a lair cleared (explore mode). Opens the exit when it was the last one. */
+  debugClearLair(id: number) {
+    const l = this.lairs.find((x) => x.id === id);
+    if (!l || l.cleared || this.view.playMode !== 'explore') return false;
+    l.cleared = true;
+    this.update();
+    this.syncUnits();
+    if (this.lairs.every((x) => x.cleared)) {
+      if (this.view.roomIndex >= this.rooms.length - 1) this.finishLevel();
+      else this.openExit();
+    }
+    return true;
+  }
+
+  /** Puts the leader on `pos` (explore mode) with the party bunched behind. Does not wake lairs by itself. */
+  debugTeleport(pos: Pos) {
+    const L = this.leader();
+    if (!L || this.grid.walls[pos.y * this.grid.width + pos.x]) return false;
+    this.walkTarget = null;
+    L.pos = { ...pos };
+    const taken = new Set([posKey(pos), ...this.sleeperTiles()]);
+    for (const f of this.partyAlive().filter((c) => c !== L)) {
+      f.pos = freeTileNear(this.arena!, pos, taken, this.grid);
+      taken.add(posKey(f.pos));
+    }
+    this.update({ units: unitsFrom(this.view.state!) });
+    this.syncUnits();
+    this.reveal();
+    this.refreshInteract();
+    return true;
+  }
+
+  /** Lair layout for tests: ids, spawn tiles, monster tiles. */
+  debugLairs() {
+    return this.lairs.map((l) => ({ id: l.id, aggro: l.aggro, cleared: l.cleared, spawns: l.spawns, monsters: l.monsters.map((m) => ({ ...m.c.pos })) }));
   }
 
   // ---------------- player input ----------------
@@ -461,6 +1024,7 @@ export class GameController {
   }
 
   async onTileClick(p: Pos) {
+    if (this.view.playMode === 'explore') return this.exploreClick(p);
     const c = this.actor();
     const s = this.view.state;
     if (!c || !s) return;
@@ -526,6 +1090,7 @@ export class GameController {
       if (this.view.hover) this.update({ hover: null });
       return;
     }
+    if (this.view.playMode === 'explore') return this.exploreHover(p);
     const u = s.combatants.find((x) => !x.dead && x.pos.x === p.x && x.pos.y === p.y);
     const hover: HoverInfo = { pos: p };
     if (u) {
@@ -553,12 +1118,32 @@ export class GameController {
     if (hover.unit?.name !== this.view.hover?.unit?.name || hover.unit?.hp !== this.view.hover?.unit?.hp) this.update({ hover });
   }
 
+  private exploreHover(p: Pos) {
+    const L = this.leader();
+    const k = posKey(p);
+    const sleeper = this.lairs.flatMap((l) => (l.cleared || l.awake ? [] : l.monsters)).find((m) => posKey(m.c.pos) === k);
+    const hover: HoverInfo = { pos: p };
+    if (sleeper) {
+      const c = sleeper.c;
+      hover.unit = { name: c.name, hp: c.hp, maxHp: c.maxHp, ac: c.ac, conditions: [], side: 'monster', refSlug: c.refSlug };
+    }
+    const obj = this.objectAt(p);
+    if (obj) hover.hint = obj.label;
+    if (L && !this.view.busy && !this.walking && !this.grid.walls[p.y * this.grid.width + p.x] && !sleeper) {
+      const path = findPath(this.grid, L.pos, p, this.sleeperTiles());
+      if (path) this.scene?.showOverlay({ path });
+      else this.scene?.clearOverlay();
+    } else this.scene?.clearOverlay();
+    if (hover.unit?.name !== this.view.hover?.unit?.name || hover.hint !== this.view.hover?.hint || !this.view.hover) this.update({ hover });
+  }
+
   async dodge() {
     const c = this.actor();
     if (c && this.view.state) await this.doAction(() => dodge(this.view.state!, c.id, this.rng));
   }
 
   async potion() {
+    if (this.view.playMode === 'explore') return this.explorePotion();
     const c = this.actor();
     if (c && this.view.state) await this.doAction(() => usePotion(this.view.state!, c.id, this.rng), { target: c.id });
   }
@@ -598,6 +1183,7 @@ export class GameController {
 
   /** Keyboard input; returns true if the key was handled. See HOTKEYS. */
   hotkey(key: string): boolean {
+    if (this.view.playMode === 'explore') return this.exploreHotkey(key);
     const c = this.actor();
     const s = this.view.state;
     if (!c || !s) return false;
@@ -626,6 +1212,36 @@ export class GameController {
       case 'd': void this.dodge(); return true;
       case 'p': void this.potion(); return true;
       case 'e': case 'Enter': void this.endTurn(); return true;
+    }
+    return false;
+  }
+
+  /** Explore keys: arrows/WASD step the leader, E/Enter interact, P potion. Tab is handled by the HUD (focus-aware). */
+  private exploreHotkey(key: string): boolean {
+    if (this.view.phase !== 'playing') return false;
+    const L = this.leader();
+    if (!L) return false;
+    const k = key.length === 1 ? key.toLowerCase() : key;
+    const steps: Record<string, Pos> = {
+      ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+      w: { x: 0, y: -1 }, s: { x: 0, y: 1 }, a: { x: -1, y: 0 }, d: { x: 1, y: 0 },
+    };
+    if (steps[k]) {
+      if (!this.view.busy && !this.walking) {
+        const to = { x: L.pos.x + steps[k].x, y: L.pos.y + steps[k].y };
+        const obj = this.objectAt(to);
+        if (obj && obj.kind !== 'gold') void this.doInteract(obj);
+        else if (!this.grid.walls[to.y * this.grid.width + to.x] && !this.sleeperTiles().has(posKey(to))) void this.walkTo(to);
+      }
+      return true;
+    }
+    switch (k) {
+      case 'e': case 'Enter':
+        if (!this.view.interactable) return false;
+        void this.interact();
+        return true;
+      case 'p': void this.potion(); return true;
+      case 'Escape': this.walkTarget = null; return true;
     }
     return false;
   }
@@ -828,13 +1444,23 @@ export class GameController {
     return this.view.state ? (getCombatant(this.view.state, id)?.name ?? id) : id;
   }
 
-  private syncUnits() {
+  /** Pushes unit views to the scene. Sleeping lair monsters show while exploring. `drop` ids get their sprites rebuilt. */
+  private syncUnits(drop?: Set<string>) {
     const s = this.view.state;
     if (!s || !this.scene) return;
     const views: UnitView[] = s.combatants.map((c) => {
       const d = this.view.units[c.id] ?? displayOf(c);
       return { id: c.id, spriteKey: c.spriteKey, side: c.side, pos: d.pos, hp: d.hp, maxHp: c.maxHp, name: c.name, dead: d.dead, conditions: d.conditions };
     });
+    const have = new Set(views.map((v) => v.id));
+    for (const l of this.lairs) {
+      if (l.cleared) continue;
+      for (const m of l.monsters) {
+        if (have.has(m.c.id)) continue;
+        views.push({ id: m.c.id, spriteKey: m.c.spriteKey, side: 'monster', pos: { ...m.c.pos }, hp: m.c.hp, maxHp: m.c.maxHp, name: m.c.name, dead: false, conditions: [] });
+      }
+    }
+    if (drop?.size) this.scene.setUnits(views.filter((v) => !drop.has(v.id)));
     this.scene.setUnits(views);
   }
 
@@ -1036,13 +1662,22 @@ function unitsFrom(s: GameState): Record<string, UnitDisplay> {
   return Object.fromEntries(s.combatants.map((c) => [c.id, displayOf(c)]));
 }
 
-function freeTileNear(arena: ArenaMap, from: Pos, occupied: Set<string>): Pos {
+/** The engine grid for a level: walls plus pits, crates, lore stones and chests all block. */
+function levelGrid(a: ArenaX): Grid {
+  const walls = [...a.walls];
+  const block = (p: Pos) => { if (p.x >= 0 && p.y >= 0 && p.x < a.width && p.y < a.height) walls[p.y * a.width + p.x] = true; };
+  [...(a.pits ?? []), ...(a.crates ?? []), ...a.chests, ...(a.lore ?? []).map((l) => l.pos)].forEach(block);
+  if (a.door) block(a.door);
+  return { width: a.width, height: a.height, walls };
+}
+
+function freeTileNear(arena: ArenaMap, from: Pos, occupied: Set<string>, grid?: Grid): Pos {
   for (let r = 1; r < 8; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         const p = { x: from.x + dx, y: from.y + dy };
         if (p.x < 1 || p.y < 1 || p.x >= arena.width - 1 || p.y >= arena.height - 1) continue;
-        if (arena.walls[p.y * arena.width + p.x] || occupied.has(posKey(p))) continue;
+        if ((grid ?? arena).walls[p.y * arena.width + p.x] || occupied.has(posKey(p))) continue;
         if (arena.heroSpawns.some((h) => h.x === p.x && h.y === p.y)) continue;
         return p;
       }
